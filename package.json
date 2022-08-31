@@ -1,0 +1,15 @@
+{
+  "name": "regomax_javid",
+  "version": "1.0.0",
+  "description": "PHD of Javid muellim made by Abbas Aliyev for 300 manat",
+  "main": "index.js",
+  "scripts": {
+    "start": "nodemon index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Abbas Aliyev",
+  "license": "ISC",
+  "devDependencies": {
+    "nodemon": "^2.0.19"
+  }
+}
