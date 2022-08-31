@@ -4,12 +4,15 @@
   "description": "PHD of Javid muellim made by Abbas Aliyev for 300 manat",
   "main": "index.js",
   "scripts": {
-    "start": "nodemon index.js",
+    "start": "nodemon index.js Data/wikigroup.dat_reduce 0.15 10 10000 100 Data/wikigroup.nodes Data/wikigroup.names",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Abbas Aliyev",
   "license": "ISC",
   "devDependencies": {
     "nodemon": "^2.0.19"
+  },
+  "dependencies": {
+    "buffer-split": "^1.0.0"
   }
 }
