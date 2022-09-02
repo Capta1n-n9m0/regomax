@@ -1,3 +1,3 @@
 const App = require("./Source/App");
 
-App(process.argv);
+await App(process.argv);

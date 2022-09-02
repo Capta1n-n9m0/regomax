@@ -9,8 +9,11 @@ function processFilename(filename){
 
 class Network{
     async constructor(filename) {
-        console.log(processFilename(filename));
-        await this.read_network(filename);
+        if(filename){
+            const filename = options.filename;
+            await this.read_network(filename);
+            console.log(processFilename(filename));
+        }
     }
     async read_network(filename){
         const data = await fs.readFile(processFilename(filename));
@@ -35,7 +38,7 @@ class Network{
             this.from.push(n1-1);
             this.to.push(n2-1);
         }
-        this.complete();
+        await this.complete();
     }
     init_mem(){
         // i don't to want to bother with buffers yet.
@@ -49,7 +52,7 @@ class Network{
         this.link_num = [];
         this.firstpos = [];
     }
-    complete(){
+    async complete(){
         let i, jj;
         let dangling_len;
         jj = 0;

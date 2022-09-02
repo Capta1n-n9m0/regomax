@@ -1,15 +1,21 @@
 const fs = require("fs");
+const fsp = require("fs").promises;
 const path = require("path");
 const bsplit = require("buffer-split");
 const Network = require("./Network");
+const Matrix = require("./Matrix");
 
-function main(argv){
+function compute_GR(G_R, G_rr, G_pr, G_qr, G_I, psiL, psiR, pg, net, delta_alpha, node) {
+
+}
+
+async function main(argv){
     const network_filename = argv[2];
     const delta_alpha = argv[3];
     const iprint = argv[4];
     const print_number = argv[5];
     const ten_number = argv[6];
-    const selected_filename = argv[7];
+    let selected_filename = argv[7];
     const names_filename = argv[8];
     console.log(network_filename)
     console.log(delta_alpha)
@@ -19,8 +25,31 @@ function main(argv){
     console.log(selected_filename)
     console.log(names_filename)
 
+    const len = await fsp.readFile(selected_nodes)
+        .then(data=>{
+            const lines = bsplit(data, Buffer.from("\n"));
+            return parseInt(lines[0].toString());
+        })
     let network_links = {}, selected_nodes = {}, selected_names = {};
-    const net = new Network(network_filename);
+    const net = new Network({filename: network_filename});
+    const GR = new Matrix(len, len);
+    const Grr = new Matrix(len, len);
+    const Gpr = new Matrix(len, len);
+    const Gqr = new Matrix(len, len);
+    const GI = new Matrix(len, len);
+    const n = net.size;
+    const psiL = [], psiR = [], pg = [], a = [], small_pg = [], b = [];
+    for(let i = 0; i < n; i++){
+        psiL.push(0);
+        psiR.push(0);
+        pg.push(0);
+        a.push(0);
+    }
+    for(let i = 0; i < len; i++){
+        small_pg.push(1);
+        b.push(0);
+    }
+    selected_filename = selected_filename.split(".")[0];
     if(0){
         fs.readFile(path.join(__dirname, network_filename), (err, data) => {
             // parsing the whole network
