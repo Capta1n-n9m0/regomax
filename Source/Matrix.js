@@ -1,7 +1,12 @@
 
-
+// @ts-check
 
 class Matrix{
+    /**
+     * @param{number} x
+     * @param{number} y
+     * @param{number} diag
+     */
     constructor(x, y, diag = 0) {
         let i, j;
         this.xdim = x;
@@ -24,6 +29,12 @@ class Matrix{
         for(let i = 0; i < this.ydim; i++){
             this.mat.push([]);
         }
+    }
+    get x(){
+        return this.xdim;
+    }
+    get y(){
+        return this.ydim;
     }
 }
 

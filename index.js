@@ -1,3 +1,5 @@
+process.env.UV_THREADPOOL_SIZE = 6;
+
 const App = require("./Source/App");
 
-await App(process.argv);
+App(process.argv);
