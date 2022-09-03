@@ -169,8 +169,8 @@ function swap(a, b) {
     for (const e of b) {
         t2.push(e);
     }
-    a = [];
-    b = [];
+    a.length = 0;
+    b.length = 0;
     for (const e of t1) {
         b.push(e);
     }
@@ -220,7 +220,7 @@ async function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, t
     console.log("calc_pagerank_project()");
 
     if (iprint <= 0) iprint = 1;
-    max_iter = Math.floor(-Math.log(eps_pagerank) / delta_alpha + 3e-7);
+    max_iter = Math.floor(-Math.log(eps_pagerank) / (delta_alpha + 3E-7));
     max_iter *= 2;
 
     console.log(printf("max_iter = %d", max_iter));
@@ -412,7 +412,7 @@ async function compute_GR(G_R, G_rr, G_pr,
         for (let i = 0; i < s.length; i++) f[i] = s[i];
 
         for (l = 0; l < max_iter; l++) {
-            t = s;
+            t = new Array(s.length); for(let i = 0; i < s.length; i++){t[i] = s[i]}
             net.GGmult(delta_alpha, f2, f, 0);
             swap(f, f2);
             for (j = 0; j < nr; j++) f[node[j]] = 0;
@@ -431,7 +431,7 @@ async function compute_GR(G_R, G_rr, G_pr,
             // }
             if (quality <= 0) break;
         }
-        // #pragma omp critical(print)
+// #pragma omp critical(print)
         // {
         //     printf("%5d  ", i);
         //     printf("Convergence: %5d  %5d  %18.10lg  %18.10lg\n",

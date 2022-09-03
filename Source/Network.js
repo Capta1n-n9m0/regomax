@@ -91,8 +91,10 @@ class Network {
                 dangling_len++;
             }
         }
+
         this.dangling = [];
         for (i = 0; i < dangling_len; i++) this.dangling.push(0);
+
         if (dangling_len > 0) {
             dangling_len = 0;
             for (i = 0; i < this.size; i++) {
