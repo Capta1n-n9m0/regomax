@@ -1,1 +1,2 @@
-https://drive.google.com/file/d/18dTp8UBSzxofonsBTviUYCCcLLGTXmM7/view?usp=sharing
+small   : https://drive.google.com/file/d/18dTp8UBSzxofonsBTviUYCCcLLGTXmM7/view?usp=sharing
+smaller : https://drive.google.com/file/d/1ejN3OCiJRr8TknzCoywPIia_OG_0-HZx/view?usp=sharing

@@ -1,11 +1,17 @@
 const fs = require("fs");
 const path = require("path");
 const bsplit = require("buffer-split");
+const {format} = require("util");
 
 
-function processFilename(filename) {
+/**
+ * @param {string} filename
+ * @param {string} folder
+ * @return string
+ */
+function processFilename(filename, folder = "Data") {
     console.log(filename);
-    return path.join(__dirname, "..", "Data", filename);
+    return path.join(__dirname, "..", folder, filename);
 }
 
 class Network {
@@ -110,31 +116,38 @@ class Network {
         let sum, val;
         let i, a, b, jj;
 
+        // contribution from dangling modes
+        // note the modification with respect to GGmult
+        // ==> 1/N d e^T
         if (this.dangling.length > 0) {
             sum = 0.0;
             for (i = 0; i < this.size; i++) {
                 output[i] = 0;
                 sum += input[i];
             }
+            sum /= this.size;
             for (i = 0; i < this.dangling.length; i++) output[this.dangling[i]] += sum;
         } else {
             for (i = 0; i < this.size; i++) {
                 output[i] = 0;
             }
         }
+
+        //  Computation of out=S^T*in
         for (jj = 0; jj < this.size; jj++) {
             a = this.firstpos[jj];
             b = this.firstpos[jj + 1];
             if (a >= b) continue;
-            // #ifndef USE_PROBS
+            // note that from[a]=from[i]=jj for a<=i<b
+// #ifndef USE_PROBS
             sum = 0;
             for (i = a; i < b; i++) sum += input[this.to[i]];
             output[jj] += sum / this.link_num[jj];
-            // #else
+// #else
             //    for(i=a;i<b;i++) sum+=prob[i]*in[to[i]];
             //    out[jj]+=sum;
             //    for(i=a;i<b;i++) out[jj]+=prob[i]*in[to[i]];
-            // #endif
+// #endif
 
             if (delta_alpha === 0) return;
             val = 1.0 - delta_alpha;
@@ -160,38 +173,44 @@ class Network {
         let sum, val;
         let i, a, b, jj;
 
+        // contribution from dangling modes
+        // ==> 1/N e d^T
         sum = 0.0;
         if (this.dangling.dim > 0) {
             for (i = 0; i < this.dangling.length; i++) {
                 sum += input[this.dangling[i]];
             }
             sum /= this.size;
-
         }
         for (i = 0; i < this.size; i++) output[i] = sum;
 
+
+        //  Computation of out=S*in
         for (jj = 0; jj < this.size; jj++) {
             a = this.firstpos[jj];
             b = this.firstpos[jj + 1];
             if (a >= b) continue;
 
-            // #ifndef USE_PROBS
+// #ifndef USE_PROBS
             //    val=in[from[a]]/(b-a);
             //    val=in[jj]/(b-a);
             val = input[jj] / this.link_num[jj];
-            // #else
+// #else
             //    val=in[from[a]];
             // val=in[jj];
+// #endif
+            // val = in[from[a]]*prob[a]
             for (i = a; i < b; i++) {
-                // #endif
-                // #ifndef USE_PROBS
+// #ifndef USE_PROBS
                 output[this.to[i]] += val;
-                // #else
+// #else
                 // out[to[i]]+=prob[i]*val;
-                // #endif
+// #endif
             }
         }
 
+        // computation of out=G*in, i.e. damping factor contributions
+        // avoid comlications and rounding errors if delta_alpha==0
         if (delta_alpha === 0) return;
         val = 1.0 - delta_alpha;
         for (i = 0; i < this.size; i++) output[i] *= val;
