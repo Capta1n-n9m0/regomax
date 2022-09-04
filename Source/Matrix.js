@@ -1,5 +1,4 @@
-
-// @ts-check
+const Vector = require("./Vector");
 
 class Matrix{
     /**

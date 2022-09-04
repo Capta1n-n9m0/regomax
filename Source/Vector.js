@@ -312,12 +312,18 @@ class Vector{
      * @param {Vector} b
      * @return {number}
      */
-    static diff_norm(a, b){
+    static diff_norm1(a, b){
         a.test(b);
         let sum = 0;
         for(let i = 0; i < a.dim; i++) sum += Vector.abs(a.c[i] - b.c[i]);
         return sum;
     }
+
+    [Symbol.iterator](){
+        return this.c;
+    }
+
+    static get [Symbol.species](){ return Array;}
 }
 
 module.exports = Vector;

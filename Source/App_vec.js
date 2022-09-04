@@ -199,11 +199,11 @@ function pagerank_normalize(a) {
 }
 
 /**
- * @param{float[]} pagerank
+ * @param{Vector} pagerank
  * @param{Network} net
  * @param{float} delta_alpha
  * @param{number} iprint
- * @param{number[]} node
+ * @param{Vector} node
  * @param{number} trans_frag
  * @return Promise<float>
  */
@@ -219,18 +219,18 @@ async function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, t
     console.log(printf("max_iter = %d", max_iter));
     qfak = 1.0 + delta_alpha / 2.0;
     pnorm = pagerank_normalize(pagerank);
-    let a = Array(...pagerank);
+    let a = new Vector(pagerank);
     quality_rel = 1e40;
     dlambda = 0;
-    for (l = 0; l < node.length; l++) {
-        dlambda += pagerank[node[l]];
-        pagerank[node[l]] = 0;
+    for (l = 0; l < node.dim; l++) {
+        dlambda += pagerank.at(node.at(l));
+        pagerank.at(node.at(l), 0);
     }
     dlambda_old = dlambda;
     pnorm = pagerank_normalize(pagerank);
     if (trans_frag) dlambda = 1.0 - pnorm;
     for (i = 0; i <= max_iter; i++) {
-        swap(a, pagerank);
+        Vector.swap(a, pagerank);
         if (trans_frag) {
             net.GTmult(delta_alpha, pagerank, a);
         } else {
@@ -240,14 +240,14 @@ async function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, t
         //console.log(printf("--> %5d  %25.16f", i, pnorm));
         dlambda = 0;
         for (l = 0; l < node.length; l++) {
-            dlambda += pagerank[node[l]];
-            pagerank[node[l]] = 0;
+            dlambda += pagerank.at(node.at(l));
+            pagerank.at(node.at(l), 0);
         }
         pnorm = pagerank_normalize(pagerank);
         if (trans_frag) dlambda = 1.0 - pnorm;
 
         if (i % iprint === 0 || i === max_iter) {
-            quality = diff_norm1(pagerank, a);
+            quality = Vector.diff_norm1(pagerank, a);
             q1 = quality_rel;
             quality_rel = diff_norm_rel(pagerank, a);
             //      pnorm=pagerank_normalize(pagerank);
@@ -274,12 +274,12 @@ async function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, t
 }
 
 /**
- * @param{float[]} right
- * @param{float[]} left
- * @param{float[]} pg
+ * @param{Vector} right
+ * @param{Vector} left
+ * @param{Vector} pg
  * @param{Network} net
  * @param{float} delta_alpha
- * @param{number[]} node
+ * @param{Vector} node
  * @return Promise<float>
  */
 async function compute_project(right, left, pg, net, delta_alpha, node) {
@@ -288,9 +288,9 @@ async function compute_project(right, left, pg, net, delta_alpha, node) {
     let sp, dlambda1, dlambda2, dlambda3;
     let node0 = [];
 
-    right.fill(1.0);
-    left.fill(1.0);
-    pg.fill(1.0);
+    right.put_value(1.0);
+    left.put_value(1.0);
+    pg.put_value(1.0);
 
 // #pragma omp parallel sections
     {
@@ -305,9 +305,9 @@ async function compute_project(right, left, pg, net, delta_alpha, node) {
         dlambda3 = await p3;
     }
 
-    sp = 1.0 / scalar_product(left, right);
-    for (let i = 0; i < left.length; i++) left[i] *= sp;
-    sp = scalar_product(left, right);
+    sp = 1.0 / Vector.scalar_product(left, right);
+    left.mul_eq(sp);
+    sp = Vector.scalar_product(left, right);
 // #pragma omp critical(print)
     // {
     //     printf("dlambda = %24.16lg   diff = %lg\n",
@@ -327,19 +327,19 @@ async function compute_project(right, left, pg, net, delta_alpha, node) {
  * @param{Matrix} G_pr
  * @param{Matrix} G_qr
  * @param{Matrix} G_I
- * @param{float[]} psiL
- * @param{float[]} psiR
- * @param{float[]} pg
+ * @param{Vector} psiL
+ * @param{Vector} psiR
+ * @param{Vector} pg
  * @param{Network} net
  * @param{float} delta_alpha
- * @param{number[]} node
+ * @param{Vector} node
  */
 async function compute_GR(G_R, G_rr, G_pr,
                           G_qr, G_I, psiL,
                           psiR, pg, net,
                           delta_alpha, node) {
     let n = net.size;
-    let nr = node.length;
+    let nr = node.dim;
     let ns = n - nr;
     if (G_R.x !== nr || G_R.y !== nr) throw "Wrong matrix size of G_R  in compute_GR";
     if (G_rr.x !== nr || G_rr.y !== nr) throw "Wrong matrix size of G_rr  in compute_GR";
@@ -359,19 +359,19 @@ async function compute_GR(G_R, G_rr, G_pr,
     console.log("Computation of left and right eigenvectors of G_ss");
     dlambda = await compute_project(psiR, psiL, pg, net, delta_alpha, node);
 
-    let input = new Array(n),
-        output = new Array(n),
-        s = new Array(n),
-        t = new Array(n),
-        f = new Array(n),
-        f2 = new Array(n);
+    let input = new Vector(n),
+        output = new Vector(n),
+        s = new Vector(n),
+        t = new Vector(n),
+        f = new Vector(n),
+        f2 = new Vector(n);
     // note that the last line also fixes the default size of dvec to n
     // which is important in the private declaration below which implicitely
     // calls the default constructor of dvec for each thread
 
 // #pragma omp parallel for schedule(dynamic) private(in, out, s, t, f, f2, j, l, quality)
     for (i = 0; i < nr; i++) {
-        input.fill(0.0);
+        input.put_value(0.0);
         input[node[i]] = 1;
         net.GGmult(delta_alpha, output, input);
         input[node[i]] = 0;
@@ -381,21 +381,21 @@ async function compute_GR(G_R, G_rr, G_pr,
             output[node[j]] = 0;
         }
         // s = output;
-        for (let i = 0; i < output.length; i++) s[i] = output[i];
+        s.eq(output);
         projectP(psiR, psiL, output, dlambda);
         projectQ(psiR, psiL, s);
         // f = s;
-        for (let i = 0; i < s.length; i++) f[i] = s[i];
+        f.eq(s);
 
         for (l = 0; l < max_iter; l++) {
             for(let i = 0; i < s.length; i++) t[i] = s[i];
             net.GGmult(delta_alpha, f2, f, 0);
-            swap(f, f2);
+            Vector.swap(f, f2);
             for (j = 0; j < nr; j++) f[node[j]] = 0;
             projectQ(psiR, psiL, f);
             // s += f;
-            for (let i = 0; i < s.length; i++) s[i] += f[i];
-            quality = diff_norm1(t, s);
+            s.add_eq(f);
+            quality = Vector.diff_norm1(t, s);
 // #pragma omp critical(print)
             // {
             if (l % 10 === 0) {
@@ -464,13 +464,9 @@ async function main(argv) {
         Gqr = new Matrix(len, len),
         GI = new Matrix(len, len);
     const n = net.size;
-    let psiL = new Array(n),
-        psiR = new Array(n),
-        pg = new Array(n),
-        a = new Array(n),
-        small_pg = new Array(len),
-        b = new Array(len);
-    small_pg.fill(1.0);
+    let psiL = new Vector(n),
+        psiR = new Vector(n),
+        pg = new Vector(n);
     nodefile = nodefile.split(".")[0];
     await compute_GR(GR, Grr, Gpr, Gqr, GI, psiL, psiR, pg, net, delta_alpha, node);
     print_mat(Gqr, `Gqr_${net.base_name}_${nodefile}_${len}.dat`, nodefilenames);
