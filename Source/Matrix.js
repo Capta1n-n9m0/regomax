@@ -8,14 +8,12 @@ class Matrix{
      * @param{number} diag
      */
     constructor(x, y, diag = 0) {
-        let i, j;
+        let i;
         this.xdim = x;
         this.ydim = y;
         this.init_mem();
-        for(i = 0; i < this.ydim; i++){
-            for(j = 0; j < this.xdim; j++){
-                this.mat[i].push(0);
-            }
+        for(i = 0; i < this.ydim; i++) {
+            this.mat[i].fill(0);
         }
         if(diag !== 0){
             const n = x<y ? x : y;
@@ -25,9 +23,9 @@ class Matrix{
         }
     }
     init_mem(){
-        this.mat = [];
+        this.mat = new Array(this.ydim);
         for(let i = 0; i < this.ydim; i++){
-            this.mat.push([]);
+            this.mat[i] = new Array(this.xdim);
         }
     }
     get x(){

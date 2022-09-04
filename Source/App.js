@@ -4,7 +4,6 @@ const path = require("path");
 const bsplit = require("buffer-split");
 const Network = require("./Network");
 const Matrix = require("./Matrix");
-const {format} = require('util');
 const printf = require("printf");
 
 const eps_pagerank = 1e-13;
@@ -39,7 +38,7 @@ function print_mat(a, filename, node_file_names = null) {
     let buffer = "";
     for (let i = 0; i < dimy; i++) {
         for (let j = 0; j < dimx; j++) {
-            buffer += printf("%5d\t  %5d\t  %24.26f", i, j, a.mat[i][j]);
+            buffer += printf("%5d\t  %5d\t  %24.26lg", i, j, a.mat[i][j]);
             if (i < len && j < len) {
                 buffer += printf("\t%s\t", node_names[i], node_file_names[j]);
             }
@@ -81,6 +80,7 @@ function lam_diff(t, sp, a) {
  */
 function projectQ(right, left, v) {
     let sp;
+
     sp = scalar_product(left, v);
     lam_diff(v, sp, right);
 }
@@ -94,6 +94,7 @@ function projectQ(right, left, v) {
 function projectP(right, left, v, f = 1) {
     let i, n = v.length;
     let sp;
+
     sp = scalar_product(left, v) / f;
     if (v.length !== right.length) throw "dimensions error";
     for (i = 0; i < n; i++) v[i] = sp * right[i];
@@ -162,21 +163,11 @@ function diff_norm1(a, b) {
  * @param{any[]} b
  */
 function swap(a, b) {
-    let t1 = [], t2 = [];
-    for (const e of a) {
-        t1.push(e);
-    }
-    for (const e of b) {
-        t2.push(e);
-    }
+    let t1 = new Array(...a);
     a.length = 0;
+    b.map(e=>a.push(e));
     b.length = 0;
-    for (const e of t1) {
-        b.push(e);
-    }
-    for (const e of t2) {
-        a.push(e);
-    }
+    t1.map(e=>b.push(e));
 }
 
 /**
@@ -186,6 +177,7 @@ function swap(a, b) {
 function sum_vector(a) {
     let sum;
     let i, n;
+
     n = a.length;
     sum = 0.0;
     for (i = 0; i < n; i++) sum += a[i];
@@ -198,10 +190,9 @@ function sum_vector(a) {
  */
 function pagerank_normalize(a) {
     let sum;
+
     sum = sum_vector(a);
-    for (let i = 0; i < a.length; i++) {
-        a[i] /= sum;
-    }
+    for (let i = 0; i < a.length; i++) a[i] /= sum;
     return sum;
 }
 
@@ -226,8 +217,7 @@ async function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, t
     console.log(printf("max_iter = %d", max_iter));
     qfak = 1.0 + delta_alpha / 2.0;
     pnorm = pagerank_normalize(pagerank);
-    let a = [];
-    for (const e of pagerank) a.push(e);
+    let a = Array(...pagerank);
     quality_rel = 1e40;
     dlambda = 0;
     for (l = 0; l < node.length; l++) {
@@ -262,7 +252,7 @@ async function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, t
             //      pnorm=sum_vector(pagerank);
 // #pragma omp critical(print)
             // {
-            console.log(printf("%5d  %18.10f  %18.10f  %25.16f  %18.10f  %25.16f", i, quality, quality_rel, dlambda, Math.abs(dlambda - dlambda_old), pnorm));
+            console.log(printf("%5d  %18.10lg  %18.10lg  %25.16lg  %18.10lg  %25.16lg", i, quality, quality_rel, dlambda, Math.abs(dlambda - dlambda_old), pnorm));
             //     fflush(stdout);
             // }
             dlambda_old = dlambda;
@@ -275,7 +265,7 @@ async function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, t
 // #pragma omp critical(print)
     // {
     //     printf("Convergence at i = %d  with lambda = %25.16lg.\n", i, 1.0 - dlambda);
-    console.log(printf("Convergence at i = %d  with lambda = %25.16f.\n", i, 1.0 - dlambda));
+    console.log(printf("Convergence at i = %d  with lambda = %25.16lg.\n", i, 1.0 - dlambda));
     //     fflush(stdout);
     // }
     return dlambda;
@@ -296,19 +286,12 @@ async function compute_project(right, left, pg, net, delta_alpha, node) {
     let sp, dlambda1, dlambda2, dlambda3;
     let node0 = [];
 
-    right = right.map(() => {
-        return 1.0
-    });
-    left = left.map(() => {
-        return 1.0
-    });
-    pg = pg.map(() => {
-        return 1.0
-    });
+    right.fill(1.0);
+    left.fill(1.0);
+    pg.fill(1.0);
 
 // #pragma omp parallel sections
     {
-
 // #pragma omp section
         let p2 = calc_pagerank_project(left, net, delta_alpha, iprint, node, 1);
 // #pragma omp section
@@ -318,13 +301,12 @@ async function compute_project(right, left, pg, net, delta_alpha, node) {
         dlambda1 = await p1;
         dlambda2 = await p2;
         dlambda3 = await p3;
-
     }
 
     sp = 1.0 / scalar_product(left, right);
-    for (let i = 0; i < left.length; i++) left[i] = left[i] * sp;
+    for (let i = 0; i < left.length; i++) left[i] *= sp;
     sp = scalar_product(left, right);
-    // #pragma omp critical(print)
+// #pragma omp critical(print)
     // {
     //     printf("dlambda = %24.16lg   diff = %lg\n",
     //         dlambda1, abs(dlambda1 - dlambda2));
@@ -372,30 +354,22 @@ async function compute_GR(G_R, G_rr, G_pr,
     max_iter = Math.floor(-Math.log(eps_pagerank) / (delta_alpha + 3e-7));
     max_iter *= 2;
 
-    // printf("Computation of left and right eigenvectors of G_ss\n");
-    // fflush(stdout);
     console.log("Computation of left and right eigenvectors of G_ss");
-
     dlambda = await compute_project(psiR, psiL, pg, net, delta_alpha, node);
 
-    let input, output, s, t, f, f2;
-    input = [];
-    output = [];
-    s = [];
-    t = [];
-    f = [];
-    f2 = [];
-    for (let i = 0; i < n; i++) {
-        input.push(0);
-        output.push(0);
-        s.push(0);
-        t.push(0);
-        f.push(0);
-        f2.push(0);
-    }
-    // #pragma omp parallel for schedule(dynamic) private(in, out, s, t, f, f2, j, l, quality)
+    let input = new Array(n),
+        output = new Array(n),
+        s = new Array(n),
+        t = new Array(n),
+        f = new Array(n),
+        f2 = new Array(n);
+    // note that the last line also fixes the default size of dvec to n
+    // which is important in the private declaration below which implicitely
+    // calls the default constructor of dvec for each thread
+
+// #pragma omp parallel for schedule(dynamic) private(in, out, s, t, f, f2, j, l, quality)
     for (i = 0; i < nr; i++) {
-        // in.put_value(0.0);
+        input.fill(0.0);
         input[node[i]] = 1;
         net.GGmult(delta_alpha, output, input);
         input[node[i]] = 0;
@@ -412,20 +386,19 @@ async function compute_GR(G_R, G_rr, G_pr,
         for (let i = 0; i < s.length; i++) f[i] = s[i];
 
         for (l = 0; l < max_iter; l++) {
-            t = new Array(s.length); for(let i = 0; i < s.length; i++){t[i] = s[i]}
+            for(let i = 0; i < s.length; i++) t[i] = s[i];
             net.GGmult(delta_alpha, f2, f, 0);
             swap(f, f2);
             for (j = 0; j < nr; j++) f[node[j]] = 0;
             projectQ(psiR, psiL, f);
             // s += f;
-            if (s.length !== f.length) throw "dimensions error";
             for (let i = 0; i < s.length; i++) s[i] += f[i];
             quality = diff_norm1(t, s);
-            // #pragma omp critical(print)
+// #pragma omp critical(print)
             // {
             if (l % 10 === 0) {
                 //         printf("%5d  %5d  %18.10lg  %18.10lg\n", i, l, quality, norm1(f));
-                console.log(printf("%5d  %5d  %18.10f  %18.10f", i, l, quality, norm1(f)));
+                console.log(printf("%5d  %5d  %18.10lg  %18.10lg", i, l, quality, norm1(f)));
                 //         fflush(stdout);
             }
             // }
@@ -435,7 +408,7 @@ async function compute_GR(G_R, G_rr, G_pr,
         // {
         //     printf("%5d  ", i);
         //     printf("Convergence: %5d  %5d  %18.10lg  %18.10lg\n",
-        console.log(printf("%5d  Convergence: %5d  %5d  %18.10f  %18.10f\n", i, i, l, quality, norm1(f)));
+        console.log(printf("%5d  Convergence: %5d  %5d  %18.10lg  %18.10lg\n", i, i, l, quality, norm1(f)));
         //         i, l, quality, norm1(f));
         //     fflush(stdout);
         // }
@@ -448,7 +421,6 @@ async function compute_GR(G_R, G_rr, G_pr,
             G_qr.mat[j][i] = f[node[j]];
         }
         // out += s;
-        if (output.length !== s.length) throw "dimensions error";
         for (let i = 0; i < output.length; i++) output[i] += s[i];
         net.GGmult(delta_alpha, f, output, 0);
         for (j = 0; j < nr; j++) {
@@ -484,23 +456,19 @@ async function main(argv) {
         });
     console.log(printf("reading of nodefile finished: len = %d\n", len));
     const net = new Network(netfile);
-    const GR = new Matrix(len, len);
-    const Grr = new Matrix(len, len);
-    const Gpr = new Matrix(len, len);
-    const Gqr = new Matrix(len, len);
-    const GI = new Matrix(len, len);
+    let GR = new Matrix(len, len),
+        Grr = new Matrix(len, len),
+        Gpr = new Matrix(len, len),
+        Gqr = new Matrix(len, len),
+        GI = new Matrix(len, len);
     const n = net.size;
-    const psiL = [], psiR = [], pg = [], a = [], small_pg = [], b = [];
-    for (let i = 0; i < n; i++) {
-        psiL.push(0);
-        psiR.push(0);
-        pg.push(0);
-        a.push(0);
-    }
-    for (let i = 0; i < len; i++) {
-        small_pg.push(1);
-        b.push(0);
-    }
+    let psiL = new Array(n),
+        psiR = new Array(n),
+        pg = new Array(n),
+        a = new Array(n),
+        small_pg = new Array(len),
+        b = new Array(len);
+    small_pg.fill(1.0);
     nodefile = nodefile.split(".")[0];
     await compute_GR(GR, Grr, Gpr, Gqr, GI, psiL, psiR, pg, net, delta_alpha, node);
     print_mat(Gqr, `Gqr_${net.base_name}_${nodefile}_${len}.dat`, nodefilenames);

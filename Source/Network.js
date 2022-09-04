@@ -1,7 +1,6 @@
 const fs = require("fs");
 const path = require("path");
 const bsplit = require("buffer-split");
-const {format} = require("util");
 
 
 /**
@@ -192,7 +191,6 @@ class Network {
             a = this.firstpos[jj];
             b = this.firstpos[jj + 1];
             if (a >= b) continue;
-
 // #ifndef USE_PROBS
             //    val=in[from[a]]/(b-a);
             //    val=in[jj]/(b-a);
@@ -222,7 +220,7 @@ class Network {
             sum = 0;
             for (i = 0; i < this.size; i++) sum += input[i];
         }
-        sum *= delta_alpha / this.size;
+        sum *= (delta_alpha / this.size);
         for (i = 0; i < this.size; i++) output[i] += sum;
     }
 
