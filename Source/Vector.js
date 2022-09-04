@@ -26,8 +26,8 @@ class Vector{
      * @param {Vector | number} n
      * @param {number} val
      */
-    constructor(n, val) {
-        if(typeof n === 'undefined'){
+    constructor(n = undefined, val= undefined) {
+        if(!n){
             // default constructor
             this.dim = Vector.default_size;
             if(this.dim > 0) {
@@ -46,8 +46,8 @@ class Vector{
             }
             for(let i = 0; i < this.dim; i++) this.c[i] = n.c[i];
         }
-        else if(typeof n === 'number'){
-            if(typeof val === 'undefined'){
+        else{
+            if(!val){
                 // constructor with size
                 if(n < 0) n = 0;
                 this.dim = n;
@@ -107,8 +107,8 @@ class Vector{
      * @param {number} val
      * @return {number}
      */
-    at(i, val){
-        if (typeof val == "undefined") return this.c[i];
+    at(i, val=undefined){
+        if (!val) return this.c[i];
         else{
             this.c[i] = val;
             return this.c[i];
