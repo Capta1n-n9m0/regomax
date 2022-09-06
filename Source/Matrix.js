@@ -21,7 +21,7 @@ class Matrix{
     /** @type {number}
      */
     xdim;
-    /** @type {Vector<Vector>}
+    /** @type {Vector[]}
      */
     mat;
 
@@ -34,7 +34,7 @@ class Matrix{
 
         res.ydim = o.ydim;
         res.xdim = o.xdim;
-        res.mat = new Vector(o.ydim);
+        res.mat = new Array(o.ydim);
         for(let i = 0; i < o.ydim; i++){
             res.mat[i] = Vector.fromObj(o.mat[i]);
         }
@@ -57,21 +57,18 @@ class Matrix{
             this.xdim = x;
             this.ydim = y;
             this.init_mem();
-            for (i = 0; i < this.ydim; i++) {
-                this.mat[i].put_value(0);
-            }
             if (diag !== 0) {
                 const n = x < y ? x : y;
                 for (i = 0; i < n; i++) {
-                    this.mat[i][i] = diag;
+                    this.mat[i].c[i] = diag;
                 }
             }
         }
     }
     init_mem(){
-        this.mat = new Vector(this.ydim);
+        this.mat = new Array(this.ydim);
         for(let i = 0; i < this.ydim; i++){
-            this.mat[i] = new Vector(this.xdim);
+            this.mat[i] = new Vector(this.xdim, 0);
         }
     }
 
@@ -120,9 +117,9 @@ class Matrix{
         let buffer = "";
         for (let i = 0; i < dimy; i++) {
             for (let j = 0; j < dimx; j++) {
-                buffer += printf("%5d\t  %5d\t  %24.26lg", i, j, a.mat[i][j]);
+                buffer += printf("%5d\t  %5d\t  %24.26lg", i, j, a.mat[i].c[j]);
                 if (i < len && j < len) {
-                    buffer += printf("\t%s\t", node_names[i], node_file_names[j]);
+                    buffer += printf("\t%s\t", node_names[i], node_names[j]);
                 }
                 buffer += "\n";
             }

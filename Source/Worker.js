@@ -1,3 +1,5 @@
+// noinspection DuplicatedCode
+
 const fsp = require("fs").promises;
 const path = require("path");
 const bsplit = require("buffer-split");
@@ -6,6 +8,7 @@ const Matrix = require("./Matrix");
 const printf = require("printf");
 const Vector = require("./Vector");
 const { workerData, parentPort } = require('worker_threads');
+
 
 const eps_pagerank = 1e-13;
 
@@ -168,6 +171,87 @@ if(workerData.task === 1){
     net = Network.fromObj(net);
     const dlambda = calc_pagerank_project(pg, net, delta_alpha, iprint, node, trans_flag);
     parentPort.postMessage({dlambda});
+} else if(workerData.task === 2){
+
+
+    let {start, stop, input, output, s, t, f, f2, max_iter, dlambda, delta_alpha, G_R, G_rr, G_pr, G_qr, G_I, psiL, psiR, net, node} = workerData.data;
+
+    let nr = stop
+    input = Vector.fromObj(input);
+    output = Vector.fromObj(output);
+    s = Vector.fromObj(s);
+    t = Vector.fromObj(t);
+    f = Vector.fromObj(f);
+    f2 = Vector.fromObj(f2);
+    G_R = Matrix.fromObj(G_R);
+    G_rr = Matrix.fromObj(G_rr);
+    G_pr = Matrix.fromObj(G_pr);
+    G_qr = Matrix.fromObj(G_qr);
+    G_I = Matrix.fromObj(G_I);
+    psiL = Vector.fromObj(psiL);
+    psiR = Vector.fromObj(psiR);
+    net = Network.fromObj(net);
+    node = Vector.fromObj(node);
+
+    let i, j, l;
+    let quality;
+    for (i = start; i < nr; i++) {
+        input.put_value(0.0);
+        input.c[node.c[i]] = 1;
+        net.GGmult(delta_alpha, output, input);
+        input.c[node.c[i]] = 0;
+        for (j = 0; j < nr; j++) {
+            G_R.mat[j].c[i] = output.c[node.c[j]];
+            G_rr.mat[j].c[i] = output.c[node.c[j]];
+            output.c[node.c[j]] = 0;
+        }
+        // s = output;
+        s.eq(output);
+        projectP(psiR, psiL, output, dlambda);
+        projectQ(psiR, psiL, s);
+        // f = s;
+        f.eq(s);
+
+        for (l = 0; l < max_iter; l++) {
+            t.eq(s);
+            net.GGmult(delta_alpha, f2, f, 0);
+            Vector.swap(f, f2);
+            for (j = 0; j < nr; j++) f.c[node.c[j]] = 0;
+            projectQ(psiR, psiL, f);
+            // s += f;
+            s.add_eq(f);
+            quality = Vector.diff_norm1(t, s);
+// #pragma omp critical(print)
+            {
+                if (l % 10 === 0) {
+                    console.log(printf("%5d  %5d  %18.10lg  %18.10lg", i, l, quality, Vector.norm1(f)));
+                    //         fflush(stdout);
+                }
+            }
+            if (quality <= 0) break;
+        }
+// #pragma omp critical(print)
+        {
+            console.log(printf("%5d  Convergence: %5d  %5d  %18.10lg  %18.10lg\n",
+                i, i, l, quality, Vector.norm1(f)));
+            //     fflush(stdout);
+        }
+        net.GGmult(delta_alpha, f, output, 0);
+        for (j = 0; j < nr; j++) {
+            G_pr.mat[j].c[i] = f.c[node.c[j]];
+        }
+        net.GGmult(delta_alpha, f, s, 0);
+        for (j = 0; j < nr; j++) {
+            G_qr.mat[j].c[i] = f.c[node.c[j]];
+        }
+        output.add_eq(s);
+        net.GGmult(delta_alpha, f, output, 0);
+        for (j = 0; j < nr; j++) {
+            G_I.mat[j].c[i] = f.c[node.c[j]];
+            G_R.mat[j].c[i] += f.c[node.c[j]];
+        }
+    }
+    parentPort.postMessage({data: "Done!"});
 }
 
 

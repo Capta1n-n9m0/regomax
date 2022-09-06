@@ -1,3 +1,5 @@
+// noinspection DuplicatedCode
+
 const fsp = require("fs").promises;
 const path = require("path");
 const bsplit = require("buffer-split");
@@ -83,6 +85,19 @@ function pagerank_normalize(a) {
     sum = Vector.sum_vector(a);
     a.div_eq(sum);
     return sum;
+}
+
+/**
+ * @param {number} total
+ * @param {number} n
+ * @return {number[]}
+ */
+function splits(total, n){
+    const res = new Array(n);
+    res.fill(Math.floor(total / n));
+    const t = total - res.reduce((i, j)=> i + j, 0);
+    for(let i = 0; i < t; i++) res[i] += 1;
+    return res;
 }
 
 /**
@@ -247,7 +262,7 @@ async function compute_GR(G_R, G_rr, G_pr,
 
     console.log("Computation of left and right eigenvectors of G_ss");
     dlambda = await compute_project(psiR, psiL, pg, net, delta_alpha, node);
-    process.exit(1);
+    // process.exit(1);
 
     let input = new Vector(n),
         output = new Vector(n),
@@ -266,8 +281,8 @@ async function compute_GR(G_R, G_rr, G_pr,
         net.GGmult(delta_alpha, output, input);
         input.c[node.c[i]] = 0;
         for (j = 0; j < nr; j++) {
-            G_R.mat[j][i] = output.c[node.c[j]];
-            G_rr.mat[j][i] = output.c[node.c[j]];
+            G_R.mat[j].c[i] = output.c[node.c[j]];
+            G_rr.mat[j].c[i] = output.c[node.c[j]];
             output.c[node.c[j]] = 0;
         }
         // s = output;
@@ -303,17 +318,17 @@ async function compute_GR(G_R, G_rr, G_pr,
         }
         net.GGmult(delta_alpha, f, output, 0);
         for (j = 0; j < nr; j++) {
-            G_pr.mat[j][i] = f.c[node.c[j]];
+            G_pr.mat[j].c[i] = f.c[node.c[j]];
         }
         net.GGmult(delta_alpha, f, s, 0);
         for (j = 0; j < nr; j++) {
-            G_qr.mat[j][i] = f.c[node.c[j]];
+            G_qr.mat[j].c[i] = f.c[node.c[j]];
         }
         output.add_eq(s);
         net.GGmult(delta_alpha, f, output, 0);
         for (j = 0; j < nr; j++) {
-            G_I.mat[j][i] = f.c[node.c[j]];
-            G_R.mat[j][i] += f.c[node.c[j]];
+            G_I.mat[j].c[i] = f.c[node.c[j]];
+            G_R.mat[j].c[i] += f.c[node.c[j]];
         }
     }
 }

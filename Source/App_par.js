@@ -1,3 +1,5 @@
+// noinspection DuplicatedCode
+
 const fsp = require("fs").promises;
 const path = require("path");
 const bsplit = require("buffer-split");
@@ -49,10 +51,9 @@ function projectP(right, left, v, f = 1) {
  * @param {string} folder
  * @return string
  */
-function processFilename(filename, folder = "Data") {
+function getPath(filename, folder = "Data") {
     return path.join(__dirname, "..", folder, filename);
 }
-
 
 /**
  * @param {Vector} a
@@ -173,17 +174,10 @@ async function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, t
 function calc_pagerank_project_threaded(pagerank, net, delta_alpha, iprint, node, trans_flag = 0){
     return new Promise((resolve, reject) => {
         const worker = new Worker(
-            processFilename("Worker.js", "Source"),
+            getPath("Worker.js", "Source"),
             {
                 workerData: {
-                    data: {
-                        pagerank: pagerank,
-                        net: net,
-                        delta_alpha: delta_alpha,
-                        iprint: iprint,
-                        node: node,
-                        trans_flag: trans_flag
-                    },
+                    data: {pagerank,net,delta_alpha,iprint,node,trans_flag},
                     task: 1
                 }
             });
@@ -249,6 +243,47 @@ async function compute_project(right, left, pg, net, delta_alpha, node) {
     return dlambda1;
 }
 
+function compute_GR_th(start, stop, input, output, s, t, f, f2, max_iter, dlambda, delta_alpha, G_R, G_rr, G_pr, G_qr, G_I, psiL, psiR, net, node) {
+    return new Promise((resolve, reject) => {
+        const worker = new Worker(
+            getPath("Worker.js", "Source"),
+            {
+                workerData: {
+                    data: {start, stop,
+                        input, output,
+                        s, t, f, f2,
+                        max_iter, dlambda, delta_alpha,
+                        G_R, G_rr, G_pr,
+                        G_qr, G_I, psiL,
+                        psiR, net, node},
+                    task: 2
+                }
+            });
+        worker.on("message", result=>{
+            console.log(result);
+            resolve(result);
+        });
+        worker.on("error", reject);
+        worker.on('exit', (code) => {
+            if (code !== 0)
+                reject(new Error(`stopped with  ${code} exit code`));
+        });
+    });
+}
+
+/**
+ * @param {number} total
+ * @param {number} n
+ * @return {number[]}
+ */
+function splits(total, n){
+    const res = new Array(n);
+    res.fill(Math.floor(total / n));
+    const t = total - res.reduce((i, j)=> i + j, 0);
+    for(let i = 0; i < t; i++) res[i] += 1;
+    return res;
+}
+
 /**
  * @param{Matrix} G_R
  * @param{Matrix} G_rr
@@ -286,7 +321,6 @@ async function compute_GR(G_R, G_rr, G_pr,
 
     console.log("Computation of left and right eigenvectors of G_ss");
     dlambda = await compute_project(psiR, psiL, pg, net, delta_alpha, node);
-    process.exit(1);
 
     let input = new Vector(n),
         output = new Vector(n),
@@ -295,66 +329,26 @@ async function compute_GR(G_R, G_rr, G_pr,
         f = new Vector(n),
         f2 = new Vector(n);
     // note that the last line also fixes the default size of dvec to n
-    // which is important in the private declaration below which implicitely
+    // which is important in the private declaration below which implicitly
     // calls the default constructor of dvec for each thread
 
 // #pragma omp parallel for schedule(dynamic) private(in, out, s, t, f, f2, j, l, quality)
-    for (i = 0; i < nr; i++) {
-        input.put_value(0.0);
-        input.c[node.c[i]] = 1;
-        net.GGmult(delta_alpha, output, input);
-        input.c[node.c[i]] = 0;
-        for (j = 0; j < nr; j++) {
-            G_R.mat[j][i] = output.c[node.c[j]];
-            G_rr.mat[j][i] = output.c[node.c[j]];
-            output.c[node.c[j]] = 0;
-        }
-        // s = output;
-        s.eq(output);
-        projectP(psiR, psiL, output, dlambda);
-        projectQ(psiR, psiL, s);
-        // f = s;
-        f.eq(s);
-
-        for (l = 0; l < max_iter; l++) {
-            t.eq(s);
-            net.GGmult(delta_alpha, f2, f, 0);
-            Vector.swap(f, f2);
-            for (j = 0; j < nr; j++) f.c[node.c[j]] = 0;
-            projectQ(psiR, psiL, f);
-            // s += f;
-            s.add_eq(f);
-            quality = Vector.diff_norm1(t, s);
-// #pragma omp critical(print)
-            {
-                if (l % 10 === 0) {
-                    console.log(printf("%5d  %5d  %18.10lg  %18.10lg", i, l, quality, Vector.norm1(f)));
-                    //         fflush(stdout);
-                }
-            }
-            if (quality <= 0) break;
-        }
-// #pragma omp critical(print)
-        {
-            console.log(printf("%5d  Convergence: %5d  %5d  %18.10lg  %18.10lg\n",
-                i, i, l, quality, Vector.norm1(f)));
-            //     fflush(stdout);
-        }
-        net.GGmult(delta_alpha, f, output, 0);
-        for (j = 0; j < nr; j++) {
-            G_pr.mat[j][i] = f.c[node.c[j]];
-        }
-        net.GGmult(delta_alpha, f, s, 0);
-        for (j = 0; j < nr; j++) {
-            G_qr.mat[j][i] = f.c[node.c[j]];
-        }
-        output.add_eq(s);
-        net.GGmult(delta_alpha, f, output, 0);
-        for (j = 0; j < nr; j++) {
-            G_I.mat[j][i] = f.c[node.c[j]];
-            G_R.mat[j][i] += f.c[node.c[j]];
-        }
+    let nCpu = require("os").cpus().length;
+    let schedule = splits(nr, nCpu);
+    let threads = [];
+    let acc = 0;
+    for(let i = 0; i < nCpu; i++){
+        threads.push(compute_GR_th(
+            acc, acc + schedule[i],
+            input, output,
+            s, t, f, f2,
+            max_iter, dlambda, delta_alpha,
+            G_R, G_rr, G_pr,
+            G_qr, G_I, psiL,
+            psiR, net, node))
+        acc += schedule[i];
     }
+    await Promise.all(threads);
 }
 
 async function main(argv) {
@@ -371,7 +365,7 @@ async function main(argv) {
     console.log(printf("file of node names = %s\n", nodefilenames));
 
     let node;
-    const len = await fsp.readFile(processFilename(nodefile))
+    const len = await fsp.readFile(getPath(nodefile))
         .then(data => {
             const lines = bsplit(data, Buffer.from("\n"));
             let len = parseInt(lines[0].toString());
@@ -398,6 +392,7 @@ async function main(argv) {
     await compute_GR(GR, Grr, Gpr, Gqr, GI, psiL, psiR, pg, net, delta_alpha, node);
     Matrix.print_mat(Gqr, `Gqr_${net.base_name}_${nodefile}_${len}.dat`, nodefilenames);
     console.log(`Calculations took ${(getTime() - start) / 1000} sec\n`);
+    return 0;
 }
 
 module.exports = main;
