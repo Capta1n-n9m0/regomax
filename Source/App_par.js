@@ -5,7 +5,7 @@ const Network = require("./Network");
 const Matrix = require("./Matrix");
 const printf = require("printf");
 const Vector = require("./Vector");
-
+const {Worker} = require("worker_threads");
 
 const eps_pagerank = 1e-13;
 
@@ -160,6 +160,45 @@ async function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, t
     return dlambda;
 }
 
+
+/**
+ * @param{Vector} pagerank
+ * @param{Network} net
+ * @param{number} delta_alpha
+ * @param{number} iprint
+ * @param{Vector} node
+ * @param{number} trans_flag
+ * @return {Promise}
+ */
+function calc_pagerank_project_threaded(pagerank, net, delta_alpha, iprint, node, trans_flag = 0){
+    return new Promise((resolve, reject) => {
+        const worker = new Worker(
+            processFilename("Worker.js", "Source"),
+            {
+                workerData: {
+                    data: {
+                        pagerank: pagerank,
+                        net: net,
+                        delta_alpha: delta_alpha,
+                        iprint: iprint,
+                        node: node,
+                        trans_flag: trans_flag
+                    },
+                    task: 1
+                }
+            });
+        worker.on("message", result=>{
+            let {dlambda} = result;
+            resolve(dlambda);
+        });
+        worker.on("error", reject);
+        worker.on('exit', (code) => {
+            if (code !== 0)
+                reject(new Error(`stopped with  ${code} exit code`));
+        });
+    });
+}
+
 /**
  * @param{Vector} right
  * @param{Vector} left
@@ -179,22 +218,22 @@ async function compute_project(right, left, pg, net, delta_alpha, node) {
     left.put_value(1.0);
     pg.put_value(1.0);
 
-    console.log("Starting timer for serial calculations!");
+    console.log("Starting timer for parallel calculations!");
     let l_timer = getTime();
 // #pragma omp parallel sections
     {
 // #pragma omp section
-        let p2 = calc_pagerank_project(left, net, delta_alpha, iprint, node, 1);
+        let t2 = calc_pagerank_project_threaded(left, net, delta_alpha, iprint, node, 1);
 // #pragma omp section
-        let p1 = calc_pagerank_project(right, net, delta_alpha, iprint, node);
+        let t1 = calc_pagerank_project_threaded(right, net, delta_alpha, iprint, node);
 // #pragma omp section
-        let p3 = calc_pagerank_project(pg, net, delta_alpha, iprint, node0);
+        let t3 = calc_pagerank_project_threaded(pg, net, delta_alpha, iprint, node);
 
-        dlambda1 = await p1;
-        dlambda2 = await p2;
-        dlambda3 = await p3;
+        dlambda1 = await t1;
+        dlambda2 = await t2;
+        dlambda3 = await t3;
     }
-    console.log(`Serial calculations took ${getTime() - l_timer} ms!`);
+    console.log(`Parallel calculations took ${getTime() - l_timer} ms!`);
 
     sp = 1.0 / Vector.scalar_product(left, right);
     left.mul_eq(sp);
@@ -359,7 +398,6 @@ async function main(argv) {
     await compute_GR(GR, Grr, Gpr, Gqr, GI, psiL, psiR, pg, net, delta_alpha, node);
     Matrix.print_mat(Gqr, `Gqr_${net.base_name}_${nodefile}_${len}.dat`, nodefilenames);
     console.log(`Calculations took ${(getTime() - start) / 1000} sec\n`);
-    return 0;
 }
 
 module.exports = main;
