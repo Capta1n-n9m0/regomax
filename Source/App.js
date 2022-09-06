@@ -355,6 +355,7 @@ async function main(argv) {
     await compute_GR(GR, Grr, Gpr, Gqr, GI, psiL, psiR, pg, net, delta_alpha, node);
     Matrix.print_mat(Gqr, `Gqr_${net.base_name}_${nodefile}_${len}.dat`, nodefilenames);
     console.log(`Calculations took ${(getTime() - start) / 1000} sec\n`);
+    return 0;
 }
 
 module.exports = main;

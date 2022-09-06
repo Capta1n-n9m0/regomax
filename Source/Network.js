@@ -41,14 +41,30 @@ class Network {
      */
     dangling = new Vector();
 
+    /**
+     * @param {Network} o
+     * @returns {Network}
+     */
+    static fromObj(o){
+        const res = new Network();
 
+        res.size = o.size;
+        res.link_len = o.size;
+        res.base_name = o.base_name;
+        res.from = Vector.fromObj(o.from);
+        res.to = Vector.fromObj(o.to);
+        res.link_num = Vector.fromObj(o.link_num);
+        res.firstpos = Vector.fromObj(o.firstpos);
+        res.dangling = Vector.fromObj(o.dangling);
+
+        return res;
+    }
     /**
      * @param {string} filename
      */
-    constructor(filename) {
+    constructor(filename=undefined) {
         if (filename) {
             this.read_network(filename);
-            console.log(processFilename(filename));
         }
     }
 
@@ -75,12 +91,12 @@ class Network {
             this.to.c[i] = n2 - 1;
         }
         this.complete();
-        console.log("size = %d   link_len = %d   dangling_len = %d", this.size, this.link_len, this.dangling.length);
+        console.log("size = %d   link_len = %d   dangling_len = %d", this.size, this.link_len, this.dangling.dim);
         console.log("****** => Reading of data file finished");
     }
 
     init_mem() {
-        // i don't to want to bother with buffers yet.
+        // I don't to want to bother with buffers yet.
         // so, using js arrays
         // this.from = Buffer.alloc(8*this.link_len);
         // this.to = Buffer.alloc(8*this.link_len);
@@ -96,7 +112,7 @@ class Network {
         let i, jj;
         let dangling_len;
 
-        // building of 1stpos-structure
+        // building of 1st pos-structure
         jj = 0;
         this.firstpos.c[jj] = 0;
         for (i = 0; i < this.link_len; i++) {
@@ -179,7 +195,7 @@ class Network {
         }
 
         // computation of out=G^T*in, i.e. damping factor contributions
-        // avoid comlications and rounding errors if delta_alpha==0
+        // avoid complications and rounding errors if delta_alpha==0
         if (delta_alpha === 0) return;
         val = 1.0 - delta_alpha;
         for (i = 0; i < this.size; i++) output.c[i] *= val;
@@ -239,7 +255,7 @@ class Network {
         }
 
         // computation of out=G*in, i.e. damping factor contributions
-        // avoid comlications and rounding errors if delta_alpha==0
+        // avoid complications and rounding errors if delta_alpha==0
         if (delta_alpha === 0) return;
         val = 1.0 - delta_alpha;
         for (i = 0; i < this.size; i++) output.c[i] *= val;

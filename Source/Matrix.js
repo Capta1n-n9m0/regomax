@@ -13,6 +13,7 @@ function processFilename(filename, folder = "Data") {
     return path.join(__dirname, "..", folder, filename);
 }
 
+// noinspection JSUnusedGlobalSymbols
 class Matrix{
     /** @type {number}
      */
@@ -23,6 +24,23 @@ class Matrix{
     /** @type {Vector<Vector>}
      */
     mat;
+
+    /**
+     * @param {Matrix} o
+     * @return {Matrix}
+     */
+    static fromObj(o){
+        const res = new Matrix(1, 1);
+
+        res.ydim = o.ydim;
+        res.xdim = o.xdim;
+        res.mat = new Vector(o.ydim);
+        for(let i = 0; i < o.ydim; i++){
+            res.mat[i] = Vector.fromObj(o.mat[i]);
+        }
+
+        return res;
+    }
 
     /**
      * @param{number | Matrix} x
@@ -85,10 +103,10 @@ class Matrix{
      * @param {string} filename
      * @param {string} node_file_names
      */
-    static print_mat(a, filename, node_file_names = null) {
-        let i, j, dimx, dimy, len = 0, nlen, l;
+    static print_mat(a, filename, node_file_names = undefined) {
+        let dimx, dimy, len = 0;
         let node_names = [];
-        if (node_file_names !== null) {
+        if (node_file_names) {
             const data = fs.readFileSync(processFilename(node_file_names));
             const lines = bsplit(data, Buffer.from("\n"));
             for (const line of lines) {
