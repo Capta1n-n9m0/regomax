@@ -174,15 +174,16 @@ if(workerData.task === 1){
 } else if(workerData.task === 2){
 
 
-    let {start, stop, input, output, s, t, f, f2, max_iter, dlambda, delta_alpha, G_R, G_rr, G_pr, G_qr, G_I, psiL, psiR, net, node} = workerData.data;
+    let {start, stop, max_iter, dlambda, delta_alpha, G_R, G_rr, G_pr, G_qr, G_I, psiL, psiR, net, node} = workerData.data;
 
-    let nr = stop
-    input = Vector.fromObj(input);
-    output = Vector.fromObj(output);
-    s = Vector.fromObj(s);
-    t = Vector.fromObj(t);
-    f = Vector.fromObj(f);
-    f2 = Vector.fromObj(f2);
+    let nr = stop;
+    let n = net.size;
+    let input = new Vector(n),
+        output = new Vector(n),
+        s = new Vector(n),
+        t = new Vector(n),
+        f = new Vector(n),
+        f2 = new Vector(n);
     G_R = Matrix.fromObj(G_R);
     G_rr = Matrix.fromObj(G_rr);
     G_pr = Matrix.fromObj(G_pr);
@@ -201,8 +202,8 @@ if(workerData.task === 1){
         net.GGmult(delta_alpha, output, input);
         input.c[node.c[i]] = 0;
         for (j = 0; j < nr; j++) {
-            G_R.mat[j].c[i] = output.c[node.c[j]];
-            G_rr.mat[j].c[i] = output.c[node.c[j]];
+            G_R.mat.c[j*G_R.ydim + i] = output.c[node.c[j]];
+            G_rr.mat.c[j*G_R.ydim + i] = output.c[node.c[j]];
             output.c[node.c[j]] = 0;
         }
         // s = output;
@@ -238,17 +239,17 @@ if(workerData.task === 1){
         }
         net.GGmult(delta_alpha, f, output, 0);
         for (j = 0; j < nr; j++) {
-            G_pr.mat[j].c[i] = f.c[node.c[j]];
+            G_pr.mat.c[j*G_pr.ydim + i] = f.c[node.c[j]];
         }
         net.GGmult(delta_alpha, f, s, 0);
         for (j = 0; j < nr; j++) {
-            G_qr.mat[j].c[i] = f.c[node.c[j]];
+            G_qr.mat.c[j*G_pr.ydim + i] = f.c[node.c[j]];
         }
         output.add_eq(s);
         net.GGmult(delta_alpha, f, output, 0);
         for (j = 0; j < nr; j++) {
-            G_I.mat[j].c[i] = f.c[node.c[j]];
-            G_R.mat[j].c[i] += f.c[node.c[j]];
+            G_I.mat.c[j*G_pr.ydim + i] = f.c[node.c[j]];
+            G_R.mat.c[j*G_pr.ydim + i] = f.c[node.c[j]];
         }
     }
     parentPort.postMessage({data: "Done!"});

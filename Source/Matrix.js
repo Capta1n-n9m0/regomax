@@ -21,7 +21,7 @@ class Matrix{
     /** @type {number}
      */
     xdim;
-    /** @type {Vector[]}
+    /** @type {Vector}
      */
     mat;
 
@@ -34,10 +34,7 @@ class Matrix{
 
         res.ydim = o.ydim;
         res.xdim = o.xdim;
-        res.mat = new Array(o.ydim);
-        for(let i = 0; i < o.ydim; i++){
-            res.mat[i] = Vector.fromObj(o.mat[i]);
-        }
+        res.mat = Vector.fromObj(o.mat);
 
         return res;
     }
@@ -51,7 +48,7 @@ class Matrix{
         if(x instanceof Matrix){
             this.xdim = x.xdim; this.ydim = x.ydim;
             this.init_mem();
-            for(let i = 0; i < this.ydim; i++) this.mat[i].eq(x.mat[i]);
+            this.mat.eq(x.mat);
         } else {
             let i;
             this.xdim = x;
@@ -60,16 +57,14 @@ class Matrix{
             if (diag !== 0) {
                 const n = x < y ? x : y;
                 for (i = 0; i < n; i++) {
-                    this.mat[i].c[i] = diag;
+                    this.mat.c[i*this.ydim + i] = diag;
                 }
             }
         }
     }
     init_mem(){
-        this.mat = new Array(this.ydim);
-        for(let i = 0; i < this.ydim; i++){
-            this.mat[i] = new Vector(this.xdim, 0);
-        }
+        if(this.mat) delete this.mat;
+        this.mat = new Vector(this.ydim*this.xdim, 0);
     }
 
     /**
@@ -92,7 +87,7 @@ class Matrix{
     copy(a){
         this.xdim = a.xdim; this.ydim = a.ydim;
         this.init_mem();
-        for(let i = 0; i < this.ydim; i++) this.mat[i].eq(a.mat[i]);
+        this.mat.eq(a.mat);
     }
 
     /**
@@ -117,7 +112,7 @@ class Matrix{
         let buffer = "";
         for (let i = 0; i < dimy; i++) {
             for (let j = 0; j < dimx; j++) {
-                buffer += printf("%5d\t  %5d\t  %24.26lg", i, j, a.mat[i].c[j]);
+                buffer += printf("%5d\t  %5d\t  %24.26lg", i, j, a.mat.c[i*a.ydim + j]);
                 if (i < len && j < len) {
                     buffer += printf("\t%s\t", node_names[i], node_names[j]);
                 }

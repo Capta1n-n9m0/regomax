@@ -281,8 +281,8 @@ async function compute_GR(G_R, G_rr, G_pr,
         net.GGmult(delta_alpha, output, input);
         input.c[node.c[i]] = 0;
         for (j = 0; j < nr; j++) {
-            G_R.mat[j].c[i] = output.c[node.c[j]];
-            G_rr.mat[j].c[i] = output.c[node.c[j]];
+            G_R.mat.c[j*G_R.ydim + i] = output.c[node.c[j]];
+            G_rr.mat.c[j*G_R.ydim + i] = output.c[node.c[j]];
             output.c[node.c[j]] = 0;
         }
         // s = output;
@@ -318,17 +318,17 @@ async function compute_GR(G_R, G_rr, G_pr,
         }
         net.GGmult(delta_alpha, f, output, 0);
         for (j = 0; j < nr; j++) {
-            G_pr.mat[j].c[i] = f.c[node.c[j]];
+            G_pr.mat.c[j*G_pr.ydim + i] = f.c[node.c[j]];
         }
         net.GGmult(delta_alpha, f, s, 0);
         for (j = 0; j < nr; j++) {
-            G_qr.mat[j].c[i] = f.c[node.c[j]];
+            G_qr.mat.c[j*G_pr.ydim + i] = f.c[node.c[j]];
         }
         output.add_eq(s);
         net.GGmult(delta_alpha, f, output, 0);
         for (j = 0; j < nr; j++) {
-            G_I.mat[j].c[i] = f.c[node.c[j]];
-            G_R.mat[j].c[i] += f.c[node.c[j]];
+            G_I.mat.c[j*G_pr.ydim + i] = f.c[node.c[j]];
+            G_R.mat.c[j*G_pr.ydim + i] = f.c[node.c[j]];
         }
     }
 }

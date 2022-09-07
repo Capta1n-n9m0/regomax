@@ -243,15 +243,13 @@ async function compute_project(right, left, pg, net, delta_alpha, node) {
     return dlambda1;
 }
 
-function compute_GR_th(start, stop, input, output, s, t, f, f2, max_iter, dlambda, delta_alpha, G_R, G_rr, G_pr, G_qr, G_I, psiL, psiR, net, node) {
+function compute_GR_th(start, stop, max_iter, dlambda, delta_alpha, G_R, G_rr, G_pr, G_qr, G_I, psiL, psiR, net, node) {
     return new Promise((resolve, reject) => {
         const worker = new Worker(
             getPath("Worker.js", "Source"),
             {
                 workerData: {
                     data: {start, stop,
-                        input, output,
-                        s, t, f, f2,
                         max_iter, dlambda, delta_alpha,
                         G_R, G_rr, G_pr,
                         G_qr, G_I, psiL,
@@ -340,8 +338,6 @@ async function compute_GR(G_R, G_rr, G_pr,
     for(let i = 0; i < nCpu; i++){
         threads.push(compute_GR_th(
             acc, acc + schedule[i],
-            input, output,
-            s, t, f, f2,
             max_iter, dlambda, delta_alpha,
             G_R, G_rr, G_pr,
             G_qr, G_I, psiL,
