@@ -1,4 +1,3 @@
-const Vector = require("./Vector");
 const fs = require("fs");
 const bsplit = require("buffer-split");
 const printf = require("printf");
@@ -20,7 +19,7 @@ class Matrix{
     /** @type {number}
      */
     xdim;
-    /** @type {Vector<Vector>}
+    /** @type {Float64Array[]}
      */
     mat;
 
@@ -33,14 +32,18 @@ class Matrix{
         if(x instanceof Matrix){
             this.xdim = x.xdim; this.ydim = x.ydim;
             this.init_mem();
-            for(let i = 0; i < this.ydim; i++) this.mat[i].eq(x.mat[i]);
+            for (let i = 0; i < this.ydim; i++) {
+                for (let j = 0; j < this.xdim; j++) {
+                    this.mat[i][j] = x.mat[i][j];
+                }
+            }
         } else {
             let i;
             this.xdim = x;
             this.ydim = y;
             this.init_mem();
             for (i = 0; i < this.ydim; i++) {
-                this.mat[i].put_value(0);
+                this.mat[i].fill(0);
             }
             if (diag !== 0) {
                 const n = x < y ? x : y;
@@ -51,9 +54,9 @@ class Matrix{
         }
     }
     init_mem(){
-        this.mat = new Vector(this.ydim);
+        this.mat = new Array(this.ydim);
         for(let i = 0; i < this.ydim; i++){
-            this.mat[i] = new Vector(this.xdim);
+            this.mat[i] = new Float64Array(new SharedArrayBuffer(Float64Array.BYTES_PER_ELEMENT * this.xdim));
         }
     }
 
@@ -77,7 +80,11 @@ class Matrix{
     copy(a){
         this.xdim = a.xdim; this.ydim = a.ydim;
         this.init_mem();
-        for(let i = 0; i < this.ydim; i++) this.mat[i].eq(a.mat[i]);
+        for (let i = 0; i < this.ydim; i++) {
+            for (let j = 0; j < this.xdim; j++) {
+                this.mat[i][j] = a.mat[i][j];
+            }
+        }
     }
 
     /**
@@ -86,7 +93,7 @@ class Matrix{
      * @param {string} node_file_names
      */
     static print_mat(a, filename, node_file_names = null) {
-        let i, j, dimx, dimy, len = 0, nlen, l;
+        let dimx, dimy, len = 0;
         let node_names = [];
         if (node_file_names !== null) {
             const data = fs.readFileSync(processFilename(node_file_names));
@@ -104,7 +111,7 @@ class Matrix{
             for (let j = 0; j < dimx; j++) {
                 buffer += printf("%5d\t  %5d\t  %24.26lg", i, j, a.mat[i][j]);
                 if (i < len && j < len) {
-                    buffer += printf("\t%s\t", node_names[i], node_file_names[j]);
+                    buffer += printf("\t%s\t", node_names[i], node_names[j]);
                 }
                 buffer += "\n";
             }

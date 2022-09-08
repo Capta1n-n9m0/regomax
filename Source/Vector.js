@@ -10,7 +10,7 @@ class Vector{
     /** @type {number}
      */
     dim;
-    /** @type {number[]}
+    /** @type {Float64Array}
      */
     c;
 
@@ -31,18 +31,14 @@ class Vector{
             // default constructor
             this.dim = Vector.default_size;
             if(this.dim > 0) {
-                this.c = new Array(this.dim);
-            } else {
-                this.c = [];
+                this.c = new Float64Array(new SharedArrayBuffer(Float64Array.BYTES_PER_ELEMENT * this.dim));
             }
         }
         else if(n instanceof Vector){
             // copy constructor
             this.dim = n.dim;
             if(this.dim > 0){
-                this.c = new Array(this.dim);
-            } else {
-                this.c = [];
+                this.c = new Float64Array(new SharedArrayBuffer(Float64Array.BYTES_PER_ELEMENT * this.dim));
             }
             for(let i = 0; i < this.dim; i++) this.c[i] = n.c[i];
         }
@@ -52,9 +48,7 @@ class Vector{
                 if(n < 0) n = 0;
                 this.dim = n;
                 if(this.dim > 0){
-                    this.c = new Array(this.dim);
-                } else {
-                    this.c = [];
+                    this.c = new Float64Array(new SharedArrayBuffer(Float64Array.BYTES_PER_ELEMENT * this.dim));
                 }
                 Vector.default_size = n;
             }
@@ -64,9 +58,7 @@ class Vector{
                 if(n < 0) n = 0;
                 this.dim = n;
                 if(this.dim > 0){
-                    this.c = new Array(this.dim)
-                } else {
-                    this.c = [];
+                    this.c = new Float64Array(new SharedArrayBuffer(Float64Array.BYTES_PER_ELEMENT * this.dim));
                 }
                 Vector.default_size = n;
                 this.c.fill(val);
@@ -87,9 +79,7 @@ class Vector{
             this.dim = n;
             delete this.c;
             if(this.dim > 0){
-                this.c = new Array(this.dim);
-            } else {
-                this.c = [];
+                this.c = new Float64Array(new SharedArrayBuffer(Float64Array.BYTES_PER_ELEMENT * this.dim));
             }
         }
 
