@@ -98,6 +98,7 @@ class Network {
         this.link_len = parseInt(lines[1].toString());
         this.init_mem();
         this.base_name = filename.split(".")[0];
+        this.base_name = this.base_name.split("/")[-1];
         console.log("****** => Reading of integer connection matrix");
         lines = lines.slice(2);
         let sep = " ";

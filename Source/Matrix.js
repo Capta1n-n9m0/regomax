@@ -8,8 +8,10 @@ const path = require("path");
  * @param {string} folder
  * @return string
  */
-function processFilename(filename, folder = "Data") {
-    return path.join(__dirname, "..", folder, filename);
+function processFilename(filename, folder = undefined) {
+    if(folder)
+        return path.join(__dirname, "..", folder, filename);
+    else return filename;
 }
 
 class Matrix{

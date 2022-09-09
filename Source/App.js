@@ -88,19 +88,6 @@ function pagerank_normalize(a) {
 }
 
 /**
- * @param {number} total
- * @param {number} n
- * @return {number[]}
- */
-function splits(total, n){
-    const res = new Array(n);
-    res.fill(Math.floor(total / n));
-    const t = total - res.reduce((i, j)=> i + j, 0);
-    for(let i = 0; i < t; i++) res[i] += 1;
-    return res;
-}
-
-/**
  * @param{Vector} pagerank
  * @param{Network} net
  * @param{number} delta_alpha
@@ -262,7 +249,6 @@ async function compute_GR(G_R, G_rr, G_pr,
 
     console.log("Computation of left and right eigenvectors of G_ss");
     dlambda = await compute_project(psiR, psiL, pg, net, delta_alpha, node);
-    // process.exit(1);
 
     let input = new Vector(n),
         output = new Vector(n),
@@ -281,8 +267,8 @@ async function compute_GR(G_R, G_rr, G_pr,
         net.GGmult(delta_alpha, output, input);
         input.c[node.c[i]] = 0;
         for (j = 0; j < nr; j++) {
-            G_R.mat.c[j*G_R.ydim + i] = output.c[node.c[j]];
-            G_rr.mat.c[j*G_R.ydim + i] = output.c[node.c[j]];
+            G_R.mat[j][i] = output.c[node.c[j]];
+            G_rr.mat[j][i] = output.c[node.c[j]];
             output.c[node.c[j]] = 0;
         }
         // s = output;
@@ -318,17 +304,17 @@ async function compute_GR(G_R, G_rr, G_pr,
         }
         net.GGmult(delta_alpha, f, output, 0);
         for (j = 0; j < nr; j++) {
-            G_pr.mat.c[j*G_pr.ydim + i] = f.c[node.c[j]];
+            G_pr.mat[j][i] = f.c[node.c[j]];
         }
         net.GGmult(delta_alpha, f, s, 0);
         for (j = 0; j < nr; j++) {
-            G_qr.mat.c[j*G_pr.ydim + i] = f.c[node.c[j]];
+            G_qr.mat[j][i] = f.c[node.c[j]];
         }
         output.add_eq(s);
         net.GGmult(delta_alpha, f, output, 0);
         for (j = 0; j < nr; j++) {
-            G_I.mat.c[j*G_pr.ydim + i] = f.c[node.c[j]];
-            G_R.mat.c[j*G_pr.ydim + i] = f.c[node.c[j]];
+            G_I.mat[j][i] = f.c[node.c[j]];
+            G_R.mat[j][i] += f.c[node.c[j]];
         }
     }
 }
@@ -371,6 +357,7 @@ async function main(argv) {
         psiR = new Vector(n),
         pg = new Vector(n);
     nodefile = nodefile.split(".")[0];
+    nodefile = nodefile.split("/")[-1];
     await compute_GR(GR, Grr, Gpr, Gqr, GI, psiL, psiR, pg, net, delta_alpha, node);
     Matrix.print_mat(Gqr, `Gqr_${net.base_name}_${nodefile}_${len}.dat`, nodefilenames);
     console.log(`Calculations took ${(getTime() - start) / 1000} sec\n`);
