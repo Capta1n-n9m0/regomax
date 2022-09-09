@@ -7,9 +7,6 @@ const Network = require("./Network");
 const Matrix = require("./Matrix");
 const printf = require("printf");
 const Vector = require("./Vector");
-const os = require("os");
-const nCpu = os.cpus().length;
-const { Worker } = require("worker_threads");
 
 
 const eps_pagerank = 1e-13;
@@ -97,9 +94,9 @@ function pagerank_normalize(a) {
  * @param{number} iprint
  * @param{Vector} node
  * @param{number} trans_frag
- * @return {Promise<number>}
+ * @return {number}
  */
-async function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, trans_frag) {
+function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, trans_frag) {
     let quality, quality_rel, q1, qfak, pnorm, dlambda, dlambda_old;
     let i, max_iter, l;
     console.log("calc_pagerank_project()");
@@ -166,37 +163,6 @@ async function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, t
 }
 
 /**
- * @param{Vector} pagerank
- * @param{Network} net
- * @param{number} delta_alpha
- * @param{number} iprint
- * @param{Vector} node
- * @param{number} trans_frag
- * @return {Promise<number>}
- */
-async function calc_pg_proj_th(pagerank, net, delta_alpha, iprint, node, trans_frag = 0){
-    return new Promise((resolve, reject)=>{
-        let w = new Worker(processFilename("Thread.js", "Source"));
-
-        w.on("message", (msg)=>{
-            console.log(`calculations took ${msg.delay}ms`);
-            resolve(msg.data);
-        })
-
-        w.postMessage({
-            options:{
-                work: true,
-                task: 1,
-                once: true,
-            },
-            data: {pagerank, net, delta_alpha, iprint, node, trans_frag}
-        })
-
-    });
-}
-
-
-/**
  * @param{Vector} right
  * @param{Vector} left
  * @param{Vector} pg
@@ -218,15 +184,15 @@ async function compute_project(right, left, pg, net, delta_alpha, node) {
 // #pragma omp parallel sections
     {
 // #pragma omp section
-        let p2 = calc_pg_proj_th(left, net, delta_alpha, iprint, node, 1);
+        let p2 = calc_pagerank_project(left, net, delta_alpha, iprint, node, 1);
 // #pragma omp section
-        let p1 = calc_pg_proj_th(right, net, delta_alpha, iprint, node);
+        let p1 = calc_pagerank_project(right, net, delta_alpha, iprint, node);
 // #pragma omp section
-        let p3 = calc_pg_proj_th(pg, net, delta_alpha, iprint, node0);
+        let p3 = calc_pagerank_project(pg, net, delta_alpha, iprint, node0);
 
-        dlambda1 = await p1;
-        dlambda2 = await p2;
-        dlambda3 = await p3;
+        dlambda1 = p1;
+        dlambda2 = p2;
+        dlambda3 = p3;
     }
 
     sp = 1.0 / Vector.scalar_product(left, right);
@@ -241,77 +207,6 @@ async function compute_project(right, left, pg, net, delta_alpha, node) {
     }
 
     return dlambda1;
-}
-
-const { EventEmitter } = require("events");
-/**
- * @type {Worker[]}
- */
-let threads = new Array(nCpu);
-
-async function send_data(data){
-    console.log("send_data()");
-    return new Promise((resolve, reject)=>{
-        let done_counter = 0;
-        for(let i = 0; i < threads.length; i++){
-            threads[i].executor = (msg)=>{
-                console.log(`${msg.id} ready in ${msg.delay}ms`);
-                done_counter++;
-                if(done_counter === threads.length){
-                    for(let j = 0; j < threads[j]; j++){
-                        threads[j].off("message", threads[j].executor);
-                    }
-                    resolve(1);
-                }
-            }
-            threads[i].on("message", threads[i].executor);
-        }
-        for (let i = 0; i < threads.length; i++) {
-            threads[i].postMessage({data, options:{work: true, once: false, stage: 1, id: i, task: 2}})
-        }
-    })
-}
-
-async function compute_GR_heavy(data){
-    console.log("compute_GR_heavy()");
-    return new Promise(async (resolve, reject) => {
-        let nr = data.node.dim;
-        for (let i = 0; i < nCpu; i++) {
-            threads[i] = new Worker(processFilename("Thread.js", "Source"));
-            // threads[i].postMessage({data, options:{work: true, once: false, stage: 1, id: i}});
-            // threads[i].on("message", setup(i, threads));
-        }
-        send_data(data).then(()=>{
-            console.log("called then!");
-            let c = -1;
-            let done_counter = 0;
-            for(let i = 0; i < threads.length; i++){
-                threads[i].executor = (msg)=>{
-                    console.log(`${msg.id} ready in ${msg.delay}ms`);
-                    c++;
-                    done_counter++;
-                    if(c < nr){
-                        threads[i].postMessage({data:{i: c}, options:{work:true, once: false, stage: 2, task: 2}})
-                    }
-                    if(done_counter === nr){
-                        for(let j = 0; j < threads.length; j++){
-                            threads[j].postMessage({options: {work: false}});
-                            threads[j].off("message", threads[j].executor);
-                        }
-                        resolve();
-                    }
-                }
-                threads[i].on("message", threads[i].executor);
-            }
-            for(let i = 0; i < threads.length; i++){
-                c++;
-                if(c < nr){
-                    threads[i].postMessage({data:{i: c}, options:{work: true, once: false, stage: 2, task: 2}});
-                }
-            }
-        });
-
-    })
 }
 
 /**
@@ -331,7 +226,6 @@ async function compute_GR(G_R, G_rr, G_pr,
                           G_qr, G_I, psiL,
                           psiR, pg, net,
                           delta_alpha, node) {
-    console.log("compute_GR()");
     let n = net.size;
     let nr = node.dim;
     let ns = n - nr;
@@ -342,7 +236,10 @@ async function compute_GR(G_R, G_rr, G_pr,
     if (G_I.x !== nr || G_I.y !== nr) throw "Wrong matrix size of G_I  in compute_GR";
     let dlambda;
 
-    let max_iter;
+    let j, l;
+    let quality;
+
+    let i, max_iter;
 
     max_iter = Math.floor(-Math.log(eps_pagerank) / (delta_alpha + 3e-7));
     max_iter *= 2;
@@ -360,10 +257,63 @@ async function compute_GR(G_R, G_rr, G_pr,
     // which is important in the private declaration below which implicitely
     // calls the default constructor of dvec for each thread
 
-    const data = {G_R, G_rr, G_pr, G_qr, G_I, psiL, psiR, pg, net, delta_alpha, node, max_iter, dlambda};
-    await compute_GR_heavy(data);
-
 // #pragma omp parallel for schedule(dynamic) private(in, out, s, t, f, f2, j, l, quality)
+    for (i = 0; i < nr; i++) {
+        input.put_value(0.0);
+        input.c[node.c[i]] = 1;
+        net.GGmult(delta_alpha, output, input);
+        input.c[node.c[i]] = 0;
+        for (j = 0; j < nr; j++) {
+            G_R.mat[j][i] = output.c[node.c[j]];
+            G_rr.mat[j][i] = output.c[node.c[j]];
+            output.c[node.c[j]] = 0;
+        }
+        // s = output;
+        s.eq(output);
+        projectP(psiR, psiL, output, dlambda);
+        projectQ(psiR, psiL, s);
+        // f = s;
+        f.eq(s);
+
+        for (l = 0; l < max_iter; l++) {
+            t.eq(s);
+            net.GGmult(delta_alpha, f2, f, 0);
+            Vector.swap(f, f2);
+            for (j = 0; j < nr; j++) f.c[node.c[j]] = 0;
+            projectQ(psiR, psiL, f);
+            // s += f;
+            s.add_eq(f);
+            quality = Vector.diff_norm1(t, s);
+// #pragma omp critical(print)
+            {
+                if (l % 10 === 0) {
+                    console.log(printf("%5d  %5d  %18.10lg  %18.10lg", i, l, quality, Vector.norm1(f)));
+                    //         fflush(stdout);
+                }
+            }
+            if (quality <= 0) break;
+        }
+// #pragma omp critical(print)
+        {
+            console.log(printf("%5d  Convergence: %5d  %5d  %18.10lg  %18.10lg\n",
+                i, i, l, quality, Vector.norm1(f)));
+            //     fflush(stdout);
+        }
+        net.GGmult(delta_alpha, f, output, 0);
+        for (j = 0; j < nr; j++) {
+            G_pr.mat[j][i] = f.c[node.c[j]];
+        }
+        net.GGmult(delta_alpha, f, s, 0);
+        for (j = 0; j < nr; j++) {
+            G_qr.mat[j][i] = f.c[node.c[j]];
+        }
+        output.add_eq(s);
+        net.GGmult(delta_alpha, f, output, 0);
+        for (j = 0; j < nr; j++) {
+            G_I.mat[j][i] = f.c[node.c[j]];
+            G_R.mat[j][i] += f.c[node.c[j]];
+        }
+    }
 }
 
 async function main(argv) {
@@ -409,4 +359,145 @@ async function main(argv) {
     console.log(`Calculations took ${(getTime() - start) / 1000} sec\n`);
 }
 
-module.exports = main;
+const { parentPort } = require("worker_threads");
+
+function getTime(){
+    return (new Date()).getTime();
+}
+
+let input, output, s, t, f, f2;
+
+let G_R, G_rr, G_pr, G_qr, G_I, psiL, psiR, pg, net, delta_alpha, node, max_iter, dlambda;
+let nr, n;
+function compute_GR_heavy(i){
+    let quality;
+    let j, l;
+    input.put_value(0.0);
+    input.c[node.c[i]] = 1;
+    net.GGmult(delta_alpha, output, input);
+    input.c[node.c[i]] = 0;
+    for (j = 0; j < nr; j++) {
+        G_R.mat[j][i] = output.c[node.c[j]];
+        G_rr.mat[j][i] = output.c[node.c[j]];
+        output.c[node.c[j]] = 0;
+    }
+    // s = output;
+    s.eq(output);
+    projectP(psiR, psiL, output, dlambda);
+    projectQ(psiR, psiL, s);
+    // f = s;
+    f.eq(s);
+
+    for (l = 0; l < max_iter; l++) {
+        t.eq(s);
+        net.GGmult(delta_alpha, f2, f, 0);
+        Vector.swap(f, f2);
+        for (j = 0; j < nr; j++) f.c[node.c[j]] = 0;
+        projectQ(psiR, psiL, f);
+        // s += f;
+        s.add_eq(f);
+        quality = Vector.diff_norm1(t, s);
+// #pragma omp critical(print)
+        {
+            if (l % 10 === 0) {
+                console.log(printf("%5d  %5d  %18.10lg  %18.10lg", i, l, quality, Vector.norm1(f)));
+                //         fflush(stdout);
+            }
+        }
+        if (quality <= 0) break;
+    }
+// #pragma omp critical(print)
+    {
+        console.log(printf("%5d  Convergence: %5d  %5d  %18.10lg  %18.10lg\n",
+            i, i, l, quality, Vector.norm1(f)));
+        //     fflush(stdout);
+    }
+    net.GGmult(delta_alpha, f, output, 0);
+    for (j = 0; j < nr; j++) {
+        G_pr.mat[j][i] = f.c[node.c[j]];
+    }
+    net.GGmult(delta_alpha, f, s, 0);
+    for (j = 0; j < nr; j++) {
+        G_qr.mat[j][i] = f.c[node.c[j]];
+    }
+    output.add_eq(s);
+    net.GGmult(delta_alpha, f, output, 0);
+    for (j = 0; j < nr; j++) {
+        G_I.mat[j][i] = f.c[node.c[j]];
+        G_R.mat[j][i] += f.c[node.c[j]];
+    }
+
+}
+
+let id;
+function processor(msg){
+    if(msg.options.work){
+        switch (msg.options.task) {
+            case 1: {
+                let timer = getTime();
+                let {pagerank, net, delta_alpha, iprint, node, trans_frag} = msg.data;
+                pagerank = Vector.fromObj(pagerank);
+                net = Network.fromObj(net);
+                node = Vector.fromObj(node);
+                let dlambda = calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, trans_frag);
+                parentPort.postMessage({
+                    delay: getTime()-timer,
+                    data: dlambda
+                })
+
+                break;
+            }
+            case 2: {
+                if(msg.options.stage === 1){
+                    let timer = getTime();
+                    id = msg.options.id;
+                    G_R = Matrix.fromObj(msg.data.G_R);
+                    G_rr = Matrix.fromObj(msg.data.G_rr);
+                    G_pr = Matrix.fromObj(msg.data.G_pr);
+                    G_qr = Matrix.fromObj(msg.data.G_qr);
+                    G_I = Matrix.fromObj(msg.data.G_I);
+                    psiL = Vector.fromObj(msg.data.psiL);
+                    psiR = Vector.fromObj(msg.data.psiR);
+                    pg = Vector.fromObj(msg.data.pg);
+                    net = Network.fromObj(msg.data.net);
+                    node = Vector.fromObj(msg.data.node);
+                    delta_alpha = msg.data.delta_alpha;
+                    max_iter = msg.data.max_iter;
+                    dlambda = msg.data.dlambda;
+                    n = net.size;
+                    nr = node.dim;
+                    input = new Vector(n);
+                    output = new Vector(n);
+                    s = new Vector(n);
+                    t = new Vector(n);
+                    f = new Vector(n);
+                    f2 = new Vector(n);
+                    let delay = getTime() - timer;
+                    parentPort.postMessage({id, delay});
+                }
+                if(msg.options.stage === 2){
+                    let timer = getTime();
+
+                    let {i} = msg.data;
+                    compute_GR_heavy(i);
+
+                    let delay = getTime() - timer;
+                    parentPort.postMessage({id, delay});
+                }
+
+
+
+
+                break;
+            }
+        }
+
+        if(msg.options.once) parentPort.off("message", processor);
+    } else parentPort.off("message", processor);
+}
+
+parentPort.on("message", processor);
+
+
+
+

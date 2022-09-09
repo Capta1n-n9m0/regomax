@@ -1,4 +1,3 @@
-const Vector = require("./Vector");
 const fs = require("fs");
 const bsplit = require("buffer-split");
 const printf = require("printf");
@@ -13,7 +12,6 @@ function processFilename(filename, folder = "Data") {
     return path.join(__dirname, "..", folder, filename);
 }
 
-// noinspection JSUnusedGlobalSymbols
 class Matrix{
     /** @type {number}
      */
@@ -21,20 +19,16 @@ class Matrix{
     /** @type {number}
      */
     xdim;
-    /** @type {Vector}
+    /** @type {Float64Array[]}
      */
     mat;
 
-    /**
-     * @param {Matrix} o
-     * @return {Matrix}
-     */
     static fromObj(o){
         const res = new Matrix(1, 1);
 
-        res.ydim = o.ydim;
         res.xdim = o.xdim;
-        res.mat = Vector.fromObj(o.mat);
+        res.ydim = o.ydim;
+        res.mat = o.mat;
 
         return res;
     }
@@ -48,23 +42,32 @@ class Matrix{
         if(x instanceof Matrix){
             this.xdim = x.xdim; this.ydim = x.ydim;
             this.init_mem();
-            this.mat.eq(x.mat);
+            for (let i = 0; i < this.ydim; i++) {
+                for (let j = 0; j < this.xdim; j++) {
+                    this.mat[i][j] = x.mat[i][j];
+                }
+            }
         } else {
             let i;
             this.xdim = x;
             this.ydim = y;
             this.init_mem();
+            for (i = 0; i < this.ydim; i++) {
+                this.mat[i].fill(0);
+            }
             if (diag !== 0) {
                 const n = x < y ? x : y;
                 for (i = 0; i < n; i++) {
-                    this.mat.c[i*this.ydim + i] = diag;
+                    this.mat[i][i] = diag;
                 }
             }
         }
     }
     init_mem(){
-        if(this.mat) delete this.mat;
-        this.mat = new Vector(this.ydim*this.xdim, 0);
+        this.mat = new Array(this.ydim);
+        for(let i = 0; i < this.ydim; i++){
+            this.mat[i] = new Float64Array(new SharedArrayBuffer(Float64Array.BYTES_PER_ELEMENT * this.xdim));
+        }
     }
 
     /**
@@ -87,7 +90,11 @@ class Matrix{
     copy(a){
         this.xdim = a.xdim; this.ydim = a.ydim;
         this.init_mem();
-        this.mat.eq(a.mat);
+        for (let i = 0; i < this.ydim; i++) {
+            for (let j = 0; j < this.xdim; j++) {
+                this.mat[i][j] = a.mat[i][j];
+            }
+        }
     }
 
     /**
@@ -95,10 +102,10 @@ class Matrix{
      * @param {string} filename
      * @param {string} node_file_names
      */
-    static print_mat(a, filename, node_file_names = undefined) {
+    static print_mat(a, filename, node_file_names = null) {
         let dimx, dimy, len = 0;
         let node_names = [];
-        if (node_file_names) {
+        if (node_file_names !== null) {
             const data = fs.readFileSync(processFilename(node_file_names));
             const lines = bsplit(data, Buffer.from("\n"));
             for (const line of lines) {
@@ -112,9 +119,9 @@ class Matrix{
         let buffer = "";
         for (let i = 0; i < dimy; i++) {
             for (let j = 0; j < dimx; j++) {
-                buffer += printf("%5d\t  %5d\t  %24.26lg", i, j, a.mat.c[i*a.ydim + j]);
+                buffer += printf("%5d\t  %5d\t  %24.26lg", i, j, a.mat[i][j]);
                 if (i < len && j < len) {
-                    buffer += printf("\t%s\t", node_names[i], node_names[j]);
+                    buffer += printf("\t%s\t%s", node_names[i], node_names[j]);
                 }
                 buffer += "\n";
             }

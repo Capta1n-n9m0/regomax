@@ -1,7 +1,8 @@
 'use strict';
 
-// creating custom vector class in hopes that it would be faster than vanilla JS array
-// noinspection JSUnusedGlobalSymbols
+// creating custom vector class in hopes that it would be faster than vanilla JS array,
+// although it uses js Array class under the hood
+// In the future it could be modified to use Buffer class
 class Vector{
     /** @type {number}
      */
@@ -15,7 +16,7 @@ class Vector{
 
     /**
      * @param {Vector} o
-     * @returns {Vector}
+     * @return {Vector}
      */
     static fromObj(o){
         const res = new Vector();
@@ -25,6 +26,7 @@ class Vector{
 
         return res;
     }
+
     /**
      * @param {Vector} a
      * @throws Dimension error
@@ -42,16 +44,14 @@ class Vector{
             // default constructor
             this.dim = Vector.default_size;
             if(this.dim > 0) {
-                const shm = new SharedArrayBuffer(Float64Array.BYTES_PER_ELEMENT * this.dim);
-                this.c = new Float64Array(shm);
+                this.c = new Float64Array(new SharedArrayBuffer(Float64Array.BYTES_PER_ELEMENT * this.dim));
             }
         }
         else if(n instanceof Vector){
             // copy constructor
             this.dim = n.dim;
             if(this.dim > 0){
-                const shm = new SharedArrayBuffer(Float64Array.BYTES_PER_ELEMENT * this.dim);
-                this.c = new Float64Array(shm);
+                this.c = new Float64Array(new SharedArrayBuffer(Float64Array.BYTES_PER_ELEMENT * this.dim));
             }
             for(let i = 0; i < this.dim; i++) this.c[i] = n.c[i];
         }
@@ -61,8 +61,7 @@ class Vector{
                 if(n < 0) n = 0;
                 this.dim = n;
                 if(this.dim > 0){
-                    const shm = new SharedArrayBuffer(Float64Array.BYTES_PER_ELEMENT * this.dim);
-                    this.c = new Float64Array(shm);
+                    this.c = new Float64Array(new SharedArrayBuffer(Float64Array.BYTES_PER_ELEMENT * this.dim));
                 }
                 Vector.default_size = n;
             }
@@ -72,11 +71,10 @@ class Vector{
                 if(n < 0) n = 0;
                 this.dim = n;
                 if(this.dim > 0){
-                    const shm = new SharedArrayBuffer(Float64Array.BYTES_PER_ELEMENT * this.dim);
-                    this.c = new Float64Array(shm);
-                    this.c.fill(val);
+                    this.c = new Float64Array(new SharedArrayBuffer(Float64Array.BYTES_PER_ELEMENT * this.dim));
                 }
                 Vector.default_size = n;
+                this.c.fill(val);
             }
         }
     }
@@ -94,11 +92,7 @@ class Vector{
             this.dim = n;
             delete this.c;
             if(this.dim > 0){
-                delete this.c;
-                const shm = new SharedArrayBuffer(Float64Array.BYTES_PER_ELEMENT * this.dim);
-                this.c = new Float64Array(shm);
-            } else {
-                this.c = undefined;
+                this.c = new Float64Array(new SharedArrayBuffer(Float64Array.BYTES_PER_ELEMENT * this.dim));
             }
         }
 
@@ -110,6 +104,20 @@ class Vector{
     put_value(val){
         this.c.fill(val);
     }
+
+    /**
+     * @param {number} i
+     * @param {number} val
+     * @return {number}
+     */
+    at(i, val=undefined){
+        if (!val) return this.c[i];
+        else{
+            this.c[i] = val;
+            return this.c[i];
+        }
+    }
+
     /**
      * @param {Vector | number} a
      * @return {Vector}
@@ -185,8 +193,8 @@ class Vector{
      * @param {Vector} a
      */
     lam_diff(sp, a){
-        this.test(a);
-        for(let i = 0; i < this.dim; i++) this.c[i] -= sp * a.c[i];
+       this.test(a);
+       for(let i = 0; i < this.dim; i++) this.c[i] -= sp * a.c[i];
     }
 
     /**
@@ -318,7 +326,7 @@ class Vector{
         return this.c;
     }
 
-    static get [Symbol.species](){ return Float64Array;}
+    static get [Symbol.species](){ return Array;}
 }
 
 module.exports = Vector;

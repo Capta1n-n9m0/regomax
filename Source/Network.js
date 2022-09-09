@@ -60,6 +60,25 @@ class Network {
         return res;
     }
     /**
+     * @param {Network} o
+     * @return {Network}
+     */
+    static fromObj(o){
+        const res = new Network();
+
+        res.size = o.size;
+        res.link_len = o.link_len;
+        res.base_name = o.base_name;
+        res.from = Vector.fromObj(o.from);
+        res.to = Vector.fromObj(o.to);
+        res.link_num = Vector.fromObj(o.link_num);
+        res.firstpos = Vector.fromObj(o.firstpos);
+        res.dangling = Vector.fromObj(o.dangling);
+
+        return res;
+    }
+
+    /**
      * @param {string} filename
      */
     constructor(filename=undefined) {
@@ -84,7 +103,7 @@ class Network {
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             if (line.length === 0) continue;
-            const numbers = bsplit(line, Buffer.from(" "));
+            const numbers = bsplit(line, Buffer.from("\t"));
             const n1 = parseInt(numbers[0].toString());
             const n2 = parseInt(numbers[1].toString());
             this.from.c[i] = n1 - 1;
