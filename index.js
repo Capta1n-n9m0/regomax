@@ -1,5 +1,3 @@
-process.env.UV_THREADPOOL_SIZE = 6;
-
-const App = require("./Source/App");
+const App = require("./Source/App_par");
 
 App(process.argv);

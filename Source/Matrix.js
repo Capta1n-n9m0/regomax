@@ -23,6 +23,16 @@ class Matrix{
      */
     mat;
 
+    static fromObj(o){
+        const res = new Matrix(1, 1);
+
+        res.xdim = o.xdim;
+        res.ydim = o.ydim;
+        res.mat = o.mat;
+
+        return res;
+    }
+
     /**
      * @param{number | Matrix} x
      * @param{number} y
@@ -111,7 +121,7 @@ class Matrix{
             for (let j = 0; j < dimx; j++) {
                 buffer += printf("%5d\t  %5d\t  %24.26lg", i, j, a.mat[i][j]);
                 if (i < len && j < len) {
-                    buffer += printf("\t%s\t", node_names[i], node_names[j]);
+                    buffer += printf("\t%s\t%s", node_names[i], node_names[j]);
                 }
                 buffer += "\n";
             }

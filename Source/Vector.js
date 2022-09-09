@@ -15,6 +15,19 @@ class Vector{
     c;
 
     /**
+     * @param {Vector} o
+     * @return {Vector}
+     */
+    static fromObj(o){
+        const res = new Vector();
+
+        res.dim = o.dim;
+        res.c = o.c;
+
+        return res;
+    }
+
+    /**
      * @param {Vector} a
      * @throws Dimension error
      */
