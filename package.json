@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "nodemon index.js wikigroup.dat_reduce 0.15 10 10000 100 wikigroup.nodes wikigroup.names",
-    "run": "node --max-old-space-size=24000 index.js wikigroupmax.dat_reduce 0.15 10 10000 100 wikigroupmax.nodes wikigroupmax.names",
+    "run": "node --max-old-space-size=24000 index.js wikigroup.dat_reduce 0.15 10 10000 100 wikigroup.nodes wikigroup.names",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Abbas Aliyev",

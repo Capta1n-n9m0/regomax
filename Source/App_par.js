@@ -10,7 +10,7 @@ const Vector = require("./Vector");
 const os = require("os");
 const nCpu = os.cpus().length;
 const { Worker } = require("worker_threads");
-
+const my_log = require("./util");
 
 const eps_pagerank = 1e-13;
 
@@ -102,13 +102,13 @@ function pagerank_normalize(a) {
 async function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, trans_frag) {
     let quality, quality_rel, q1, qfak, pnorm, dlambda, dlambda_old;
     let i, max_iter, l;
-    console.log("calc_pagerank_project()");
+    my_log("calc_pagerank_project()");
 
     if (iprint <= 0) iprint = 1;
     max_iter = Math.floor(-Math.log(eps_pagerank) / (delta_alpha + 3E-7));
     max_iter *= 2;
 
-    console.log(printf("max_iter = %d", max_iter));
+    my_log(printf("max_iter = %d", max_iter));
     qfak = 1.0 + delta_alpha / 2.0;
     pnorm = pagerank_normalize(pagerank);
     let a = new Vector(pagerank);
@@ -129,7 +129,7 @@ async function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, t
             net.GGmult(delta_alpha, pagerank, a);
         }
         //pnorm = pagerank_normalize(pagerank);
-        //console.log(printf("--> %5d  %25.16f", i, pnorm));
+        //my_log(printf("--> %5d  %25.16f", i, pnorm));
         dlambda = 0;
         for (l = 0; l < node.dim; l++) {
             dlambda += pagerank.c[node.c[l]];
@@ -146,7 +146,7 @@ async function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, t
             //      pnorm=sum_vector(pagerank);
 // #pragma omp critical(print)
             // {
-            console.log(printf("%5d  %18.10lg  %18.10lg  %25.16lg  %18.10lg  %25.16lg",
+            my_log(printf("%5d  %18.10lg  %18.10lg  %25.16lg  %18.10lg  %25.16lg",
                 i, quality, quality_rel, dlambda, Math.abs(dlambda - dlambda_old), pnorm));
             //     fflush(stdout);
             // }
@@ -159,7 +159,7 @@ async function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, t
     }
 // #pragma omp critical(print)
     {
-        console.log(printf("Convergence at i = %d  with lambda = %25.16lg.\n", i, 1.0 - dlambda));
+        my_log(printf("Convergence at i = %d  with lambda = %25.16lg.\n", i, 1.0 - dlambda));
         //     fflush(stdout);
     }
     return dlambda;
@@ -179,7 +179,7 @@ async function calc_pg_proj_th(pagerank, net, delta_alpha, iprint, node, trans_f
         let w = new Worker(processFilename("Thread.js", "Source"));
 
         w.on("message", (msg)=>{
-            console.log(`calculations took ${msg.delay}ms`);
+            my_log(`calculations took ${msg.delay}ms`);
             resolve(msg.data);
         })
 
@@ -207,7 +207,7 @@ async function calc_pg_proj_th(pagerank, net, delta_alpha, iprint, node, trans_f
  */
 async function compute_project(right, left, pg, net, delta_alpha, node) {
     const iprint = 10;
-    console.log("compute_project()");
+    my_log("compute_project()");
     let sp, dlambda1, dlambda2, dlambda3;
     let node0 = new Vector(0);
 
@@ -234,9 +234,9 @@ async function compute_project(right, left, pg, net, delta_alpha, node) {
     sp = Vector.scalar_product(left, right);
 // #pragma omp critical(print)
     {
-        console.log(printf("dlambda = %24.16f   diff = %f\n",
+        my_log(printf("dlambda = %24.16f   diff = %f\n",
             dlambda1, Math.abs(dlambda1 - dlambda2)));
-        console.log(printf("TEST: psi_left^T * psi_right = %26.16f\n", sp));
+        my_log(printf("TEST: psi_left^T * psi_right = %26.16f\n", sp));
         //     fflush(stdout);
     }
 
@@ -244,18 +244,19 @@ async function compute_project(right, left, pg, net, delta_alpha, node) {
 }
 
 const { EventEmitter } = require("events");
+const Console = require("console");
 /**
  * @type {Worker[]}
  */
 let threads = new Array(nCpu);
 
 async function send_data(data){
-    console.log("send_data()");
+    my_log("send_data()");
     return new Promise((resolve, reject)=>{
         let done_counter = 0;
         for(let i = 0; i < threads.length; i++){
             threads[i].executor = (msg)=>{
-                console.log(`${msg.id} ready in ${msg.delay}ms`);
+                my_log(`${msg.id} ready in ${msg.delay}ms`);
                 done_counter++;
                 if(done_counter === threads.length){
                     for(let j = 0; j < threads[j]; j++){
@@ -273,7 +274,7 @@ async function send_data(data){
 }
 
 async function compute_GR_heavy(data){
-    console.log("compute_GR_heavy()");
+    my_log("compute_GR_heavy()");
     return new Promise(async (resolve, reject) => {
         let nr = data.node.dim;
         for (let i = 0; i < nCpu; i++) {
@@ -282,12 +283,12 @@ async function compute_GR_heavy(data){
             // threads[i].on("message", setup(i, threads));
         }
         send_data(data).then(()=>{
-            console.log("called then!");
+            my_log("called then!");
             let c = -1;
             let done_counter = 0;
             for(let i = 0; i < threads.length; i++){
                 threads[i].executor = (msg)=>{
-                    console.log(`${msg.id} ready in ${msg.delay}ms`);
+                    my_log(`${msg.id} ready in ${msg.delay}ms`);
                     c++;
                     done_counter++;
                     if(c < nr){
@@ -331,7 +332,7 @@ async function compute_GR(G_R, G_rr, G_pr,
                           G_qr, G_I, psiL,
                           psiR, pg, net,
                           delta_alpha, node) {
-    console.log("compute_GR()");
+    my_log("compute_GR()");
     let n = net.size;
     let nr = node.dim;
     let ns = n - nr;
@@ -347,7 +348,7 @@ async function compute_GR(G_R, G_rr, G_pr,
     max_iter = Math.floor(-Math.log(eps_pagerank) / (delta_alpha + 3e-7));
     max_iter *= 2;
 
-    console.log("Computation of left and right eigenvectors of G_ss");
+    my_log("Computation of left and right eigenvectors of G_ss");
     dlambda = await compute_project(psiR, psiL, pg, net, delta_alpha, node);
 
     let input = new Vector(n),
@@ -375,9 +376,9 @@ async function main(argv) {
     const ten_number = parseInt(argv[6]);
     let nodefile = argv[7];
     const nodefilenames = argv[8];
-    console.log(printf("input-file, 1-alpha, iprint, print_number, ten_number  = %s  %f  %d  %d  %d\n", netfile, delta_alpha, iprint, print_number, ten_number));
-    console.log(printf("nodefile = %s\n", nodefile));
-    console.log(printf("file of node names = %s\n", nodefilenames));
+    my_log(printf("input-file, 1-alpha, iprint, print_number, ten_number  = %s  %f  %d  %d  %d\n", netfile, delta_alpha, iprint, print_number, ten_number));
+    my_log(printf("nodefile = %s\n", nodefile));
+    my_log(printf("file of node names = %s\n", nodefilenames));
 
     let node;
     const len = await fsp.readFile(processFilename(nodefile))
@@ -392,7 +393,7 @@ async function main(argv) {
             }
             return len;
         });
-    console.log(printf("reading of nodefile finished: len = %d\n", len));
+    my_log(printf("reading of nodefile finished: len = %d\n", len));
     const net = new Network(netfile);
     let GR = new Matrix(len, len),
         Grr = new Matrix(len, len),
@@ -406,7 +407,7 @@ async function main(argv) {
     nodefile = nodefile.split(".")[0];
     await compute_GR(GR, Grr, Gpr, Gqr, GI, psiL, psiR, pg, net, delta_alpha, node);
     Matrix.print_mat(Gqr, `Gqr_${net.base_name}_${nodefile}_${len}.dat`, nodefilenames);
-    console.log(`Calculations took ${(getTime() - start) / 1000} sec\n`);
+    my_log(`Calculations took ${(getTime() - start) / 1000} sec\n`);
 }
 
 module.exports = main;

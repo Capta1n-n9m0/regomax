@@ -100,10 +100,15 @@ class Network {
         this.base_name = filename.split(".")[0];
         console.log("****** => Reading of integer connection matrix");
         lines = lines.slice(2);
+        let sep = " ";
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             if (line.length === 0) continue;
-            const numbers = bsplit(line, Buffer.from("\t"));
+            let numbers = bsplit(line, Buffer.from(sep));
+            if(numbers.length !== 2){
+                sep = "\t";
+                numbers = bsplit(line, Buffer.from(sep));
+            }
             const n1 = parseInt(numbers[0].toString());
             const n2 = parseInt(numbers[1].toString());
             this.from.c[i] = n1 - 1;
