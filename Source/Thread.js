@@ -77,7 +77,6 @@ function pagerank_normalize(a) {
 function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, trans_frag) {
     let quality, quality_rel, q1, qfak, pnorm, dlambda, dlambda_old;
     let i, max_iter, l;
-    console.log("calc_pagerank_project()");
 
     if (iprint <= 0) iprint = 1;
     max_iter = Math.floor(-Math.log(eps_pagerank) / (delta_alpha + 3E-7));

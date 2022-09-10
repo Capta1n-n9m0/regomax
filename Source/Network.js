@@ -3,6 +3,10 @@ const path = require("path");
 const bsplit = require("buffer-split");
 const Vector = require("./Vector");
 
+function getTime() {
+    return Number(process.hrtime.bigint() / BigInt(1_000_000));
+}
+
 class Network {
 
     /** @type {number}
@@ -62,6 +66,7 @@ class Network {
      * @param {string} filename
      */
     read_network(filename) {
+        let net_read_timer = getTime();
         console.log("\n****** => Reading of data file ");
         const data = fs.readFileSync(filename);
         let lines = bsplit(data, Buffer.from("\n"));
@@ -87,7 +92,7 @@ class Network {
         }
         this.complete();
         console.log("size = %d   link_len = %d   dangling_len = %d", this.size, this.link_len, this.dangling.dim);
-        console.log("****** => Reading of data file finished");
+        console.log(`****** => Reading of data file finished in ${getTime() - net_read_timer}ms`);
     }
 
     init_mem() {
