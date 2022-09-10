@@ -143,7 +143,7 @@ function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, trans_f
 const { parentPort } = require("worker_threads");
 
 function getTime(){
-    return (new Date()).getTime();
+    return Number(process.hrtime.bigint() / BigInt(1_000_000));
 }
 
 let input, output, s, t, f, f2;

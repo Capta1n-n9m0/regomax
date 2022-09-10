@@ -16,7 +16,7 @@ const eps_pagerank = 1e-13;
  * @return {number}
  */
 function getTime() {
-    return (new Date()).getTime();
+    return Number(process.hrtime.bigint() / BigInt(1_000_000));
 }
 
 /**
@@ -45,16 +45,6 @@ function projectP(right, left, v, f = 1) {
     v.test(right);
     for (i = 0; i < n; i++) v.c[i] = sp * right.c[i];
 }
-
-/**
- * @param {string} filename
- * @param {string} folder
- * @return string
- */
-function processFilename(filename, folder = "Data") {
-    return path.join(__dirname, "..", folder, filename);
-}
-
 
 /**
  * @param {Vector} a
@@ -333,7 +323,7 @@ async function main(argv) {
     console.log(printf("file of node names = %s\n", nodefilenames));
 
     let node;
-    const len = await fsp.readFile(processFilename(nodefile))
+    const len = await fsp.readFile(nodefile)
         .then(data => {
             const lines = bsplit(data, Buffer.from("\n"));
             let len = parseInt(lines[0].toString());
@@ -356,8 +346,7 @@ async function main(argv) {
     let psiL = new Vector(n),
         psiR = new Vector(n),
         pg = new Vector(n);
-    nodefile = nodefile.split(".")[0];
-    nodefile = nodefile.split("/")[-1];
+    nodefile = path.basename(nodefile, ".nodes");
     await compute_GR(GR, Grr, Gpr, Gqr, GI, psiL, psiR, pg, net, delta_alpha, node);
     Matrix.print_mat(Gqr, `Gqr_${net.base_name}_${nodefile}_${len}.dat`, nodefilenames);
     console.log(`Calculations took ${(getTime() - start) / 1000} sec\n`);

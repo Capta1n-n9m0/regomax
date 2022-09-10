@@ -3,16 +3,6 @@ const bsplit = require("buffer-split");
 const printf = require("printf");
 const path = require("path");
 
-/**
- * @param {string} filename
- * @param {string} folder
- * @return string
- */
-function processFilename(filename, folder = undefined) {
-    if(folder)
-        return path.join(__dirname, "..", folder, filename);
-    else return filename;
-}
 
 class Matrix{
     /** @type {number}
@@ -104,26 +94,31 @@ class Matrix{
      * @param {string} filename
      * @param {string} node_file_names
      */
-    static print_mat(a, filename, node_file_names = null) {
-        let dimx, dimy, len = 0;
+    static print_mat(a, filename, node_file_names = undefined) {
+        let dimx, dimy;
         let node_names = [];
-        if (node_file_names !== null) {
-            const data = fs.readFileSync(processFilename(node_file_names));
+        if (node_file_names) {
+            const data = fs.readFileSync(node_file_names);
+            /**
+             * @type {Buffer[]}
+             */
             const lines = bsplit(data, Buffer.from("\n"));
-            for (const line of lines) {
+            for (let line of lines) {
                 if (line.length === 0) continue;
+                if (line.toString()[line.length-1] === "\r") line = line.slice(0, line.length-1);
                 node_names.push(line.toString());
             }
         }
         dimx = a.x;
         dimy = a.y;
-        let fp = fs.openSync(processFilename(filename, "Results"), 'w');
+        let fp = fs.openSync(path.join(__dirname,"..", "Results", filename), 'w');
         let buffer = "";
+        let len = node_names.length;
         for (let i = 0; i < dimy; i++) {
             for (let j = 0; j < dimx; j++) {
-                buffer += printf("%5d\t  %5d\t  %24.26lg", i, j, a.mat[i][j]);
+                buffer += printf("%5d\t  %5d\t  %24.26e", i, j, a.mat[i][j]);
                 if (i < len && j < len) {
-                    buffer += printf("\t%s\t%s", node_names[i], node_names[j]);
+                    buffer += `\t\t${node_names[i]}\t${node_names[j]}`;
                 }
                 buffer += "\n";
             }

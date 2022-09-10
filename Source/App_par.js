@@ -11,26 +11,14 @@ const os = require("os");
 const nCpu = os.cpus().length;
 const { Worker } = require("worker_threads");
 
-
 const eps_pagerank = 1e-13;
-
 
 /**
  * @return {number}
  */
 function getTime() {
-    return (new Date()).getTime();
+    return Number(process.hrtime.bigint() / BigInt(1_000_000));
 }
-
-/**
- * @param {string} filename
- * @param {string} folder
- * @return string
- */
-function processFilename(filename, folder = "Data") {
-    return path.join(__dirname, "..", folder, filename);
-}
-
 
 /**
  * @param{Vector} pagerank
@@ -44,12 +32,10 @@ function processFilename(filename, folder = "Data") {
 async function calc_pg_proj_th(pagerank, net, delta_alpha, iprint, node, trans_frag = 0){
     return new Promise((resolve)=>{
         let w = new Worker(path.join(__dirname, "Thread.js"));
-
         w.on("message", (msg)=>{
             console.log(`calculations took ${msg.delay}ms`);
             resolve(msg.data);
-        })
-
+        });
         w.postMessage({
             options:{
                 work: true,
@@ -57,11 +43,9 @@ async function calc_pg_proj_th(pagerank, net, delta_alpha, iprint, node, trans_f
                 once: true,
             },
             data: {pagerank, net, delta_alpha, iprint, node, trans_frag}
-        })
-
+        });
     });
 }
-
 
 /**
  * @param{Vector} right
@@ -106,7 +90,6 @@ async function compute_project(right, left, pg, net, delta_alpha, node) {
         console.log(printf("TEST: psi_left^T * psi_right = %26.16f\n", sp));
         //     fflush(stdout);
     }
-
     return dlambda1;
 }
 
@@ -218,10 +201,9 @@ async function compute_GR(G_R, G_rr, G_pr,
     // which is important in the private declaration below which implicitely
     // calls the default constructor of dvec for each thread
 
+    // #pragma omp parallel for schedule(dynamic) private(in, out, s, t, f, f2, j, l, quality)
     const data = {G_R, G_rr, G_pr, G_qr, G_I, psiL, psiR, pg, net, delta_alpha, node, max_iter, dlambda};
     await compute_GR_heavy(data);
-
-// #pragma omp parallel for schedule(dynamic) private(in, out, s, t, f, f2, j, l, quality)
 }
 
 async function main(argv) {
@@ -238,7 +220,7 @@ async function main(argv) {
     console.log(printf("file of node names = %s\n", nodefilenames));
 
     let node;
-    const len = await fsp.readFile(processFilename(nodefile))
+    const len = await fsp.readFile(nodefile)
         .then(data => {
             const lines = bsplit(data, Buffer.from("\n"));
             let len = parseInt(lines[0].toString());
@@ -261,8 +243,7 @@ async function main(argv) {
     let psiL = new Vector(n),
         psiR = new Vector(n),
         pg = new Vector(n);
-    nodefile = nodefile.split(".")[0];
-    nodefile = nodefile.split("/")[-1];
+    nodefile = path.basename(nodefile, ".nodes");
     await compute_GR(GR, Grr, Gpr, Gqr, GI, psiL, psiR, pg, net, delta_alpha, node);
     Matrix.print_mat(Gqr, `Gqr_${net.base_name}_${nodefile}_${len}.dat`, nodefilenames);
     console.log(`Calculations took ${(getTime() - start) / 1000} sec\n`);

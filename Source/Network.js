@@ -3,17 +3,6 @@ const path = require("path");
 const bsplit = require("buffer-split");
 const Vector = require("./Vector");
 
-
-/**
- * @param {string} filename
- * @param {string} folder
- * @return string
- */
-function processFilename(filename, folder = "Data") {
-    console.log(filename);
-    return path.join(__dirname, "..", folder, filename);
-}
-
 class Network {
 
     /** @type {number}
@@ -41,24 +30,6 @@ class Network {
      */
     dangling = new Vector();
 
-    /**
-     * @param {Network} o
-     * @returns {Network}
-     */
-    static fromObj(o){
-        const res = new Network();
-
-        res.size = o.size;
-        res.link_len = o.size;
-        res.base_name = o.base_name;
-        res.from = Vector.fromObj(o.from);
-        res.to = Vector.fromObj(o.to);
-        res.link_num = Vector.fromObj(o.link_num);
-        res.firstpos = Vector.fromObj(o.firstpos);
-        res.dangling = Vector.fromObj(o.dangling);
-
-        return res;
-    }
     /**
      * @param {Network} o
      * @return {Network}
@@ -92,13 +63,12 @@ class Network {
      */
     read_network(filename) {
         console.log("\n****** => Reading of data file ");
-        const data = fs.readFileSync(processFilename(filename));
+        const data = fs.readFileSync(filename);
         let lines = bsplit(data, Buffer.from("\n"));
         this.size = parseInt(lines[0].toString());
         this.link_len = parseInt(lines[1].toString());
         this.init_mem();
-        this.base_name = filename.split(".")[0];
-        this.base_name = this.base_name.split("/")[-1];
+        this.base_name = path.basename(filename, ".dat_reduce");
         console.log("****** => Reading of integer connection matrix");
         lines = lines.slice(2);
         let sep = " ";
