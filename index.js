@@ -1,7 +1,7 @@
 const App = require("./Source/App");
 const App_par = require("./Source/App_par");
 
-console.log(process.argv[2]);
+
 if(process.argv[2] === "lin"){
     App(process.argv.slice(1));
 } else if(process.argv[2] === "par"){

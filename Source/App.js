@@ -93,7 +93,7 @@ async function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, t
     max_iter = Math.floor(-Math.log(eps_pagerank) / (delta_alpha + 3E-7));
     max_iter *= 2;
 
-    console.log(printf("max_iter = %d", max_iter));
+    // console.log(printf("max_iter = %d", max_iter));
     qfak = 1.0 + delta_alpha / 2.0;
     pnorm = pagerank_normalize(pagerank);
     let a = new Vector(pagerank);
@@ -106,6 +106,7 @@ async function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, t
     dlambda_old = dlambda;
     pnorm = pagerank_normalize(pagerank);
     if (trans_frag) dlambda = 1.0 - pnorm;
+    let iter_t = getTime();
     for (i = 0; i <= max_iter; i++) {
         Vector.swap(a, pagerank);
         if (trans_frag) {
@@ -130,11 +131,13 @@ async function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, t
             //      pnorm=pagerank_normalize(pagerank);
             //      pnorm=sum_vector(pagerank);
 // #pragma omp critical(print)
-            // {
-            console.log(printf("%5d  %18.10lg  %18.10lg  %25.16lg  %18.10lg  %25.16lg",
-                i, quality, quality_rel, dlambda, Math.abs(dlambda - dlambda_old), pnorm));
-            //     fflush(stdout);
-            // }
+            {
+                // console.log(printf("%5d  %18.10lg  %18.10lg  %25.16lg  %18.10lg  %25.16lg",
+                //     i, quality, quality_rel, dlambda, Math.abs(dlambda - dlambda_old), pnorm));
+                console.log(`${i}\t : ${getTime() - iter_t} ms`);
+                iter_t = getTime();
+                // fflush(stdout);
+            }
             dlambda_old = dlambda;
             if (quality_rel < eps_pagerank) break;
             if (quality_rel < 1e-3) {
@@ -144,10 +147,10 @@ async function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, t
     }
 // #pragma omp critical(print)
     {
-        console.log(printf("Convergence at i = %d  with lambda = %25.16lg.\n", i, 1.0 - dlambda));
-        //     fflush(stdout);
+        // console.log(printf("Convergence at i = %d  with lambda = %25.16lg.\n", i, 1.0 - dlambda));
+        // //     fflush(stdout);
     }
-    console.log(`calc_pg_proj done in ${getTime() - func_t} ms`)
+    console.log(`calc_pg_proj done in : ${getTime() - func_t} ms`);
     return dlambda;
 }
 
@@ -189,12 +192,12 @@ async function compute_project(right, left, pg, net, delta_alpha, node) {
     sp = Vector.scalar_product(left, right);
 // #pragma omp critical(print)
     {
-        console.log(printf("dlambda = %24.16f   diff = %f\n",
-            dlambda1, Math.abs(dlambda1 - dlambda2)));
-        console.log(printf("TEST: psi_left^T * psi_right = %26.16f\n", sp));
+        // console.log(printf("dlambda = %24.16f   diff = %f\n",
+        //     dlambda1, Math.abs(dlambda1 - dlambda2)));
+        // console.log(printf("TEST: psi_left^T * psi_right = %26.16f\n", sp));
         //     fflush(stdout);
     }
-    console.log(`compute_project done in ${getTime() - f_timer} ms`);
+    console.log(`compute_project done in : ${getTime() - f_timer} ms`);
     return dlambda1;
 }
 
@@ -248,6 +251,7 @@ async function compute_GR(G_R, G_rr, G_pr,
 
     // #pragma omp parallel for schedule(dynamic) private(in, out, s, t, f, f2, j, l, quality)
     let c_GR_h_timer = getTime();
+    let iter_timer = getTime();
     for (i = 0; i < nr; i++) {
         input.put_value(0.0);
         input.c[node.c[i]] = 1;
@@ -264,7 +268,7 @@ async function compute_GR(G_R, G_rr, G_pr,
         projectQ(psiR, psiL, s);
         // f = s;
         f.eq(s);
-
+        let inner_t = getTime();
         for (l = 0; l < max_iter; l++) {
             t.eq(s);
             net.GGmult(delta_alpha, f2, f, 0);
@@ -277,7 +281,9 @@ async function compute_GR(G_R, G_rr, G_pr,
 // #pragma omp critical(print)
             {
                 if (l % 10 === 0) {
-                    console.log(printf("%5d  %5d  %18.10lg  %18.10lg", i, l, quality, Vector.norm1(f)));
+                    //console.log(printf("%5d  %5d  %18.10lg  %18.10lg", i, l, quality, Vector.norm1(f)));
+                    console.log(`${i}\t${l}\t : ${getTime() - inner_t} ms`);
+                    inner_t = getTime();
                     //         fflush(stdout);
                 }
             }
@@ -285,8 +291,8 @@ async function compute_GR(G_R, G_rr, G_pr,
         }
 // #pragma omp critical(print)
         {
-            console.log(printf("%5d  Convergence: %5d  %5d  %18.10lg  %18.10lg\n",
-                i, i, l, quality, Vector.norm1(f)));
+            // console.log(printf("%5d  Convergence: %5d  %5d  %18.10lg  %18.10lg\n",
+            //     i, i, l, quality, Vector.norm1(f)));
             //     fflush(stdout);
         }
         net.GGmult(delta_alpha, f, output, 0);
@@ -303,8 +309,10 @@ async function compute_GR(G_R, G_rr, G_pr,
             G_I.mat[j][i] = f.c[node.c[j]];
             G_R.mat[j][i] += f.c[node.c[j]];
         }
+        console.log(`${i}\t : ${getTime() - iter_timer} ms`);
+        iter_timer = getTime();
     }
-    console.log(`Heaviest calculations of compute_GR took ${getTime() - c_GR_h_timer} ms`);
+    console.log(`Heaviest calculations of compute_GR took : ${getTime() - c_GR_h_timer} ms`);
 }
 
 async function main(argv) {
@@ -316,9 +324,9 @@ async function main(argv) {
     const ten_number = parseInt(argv[6]);
     let nodefile = argv[7];
     const nodefilenames = argv[8];
-    console.log(printf("input-file, 1-alpha, iprint, print_number, ten_number  = %s  %f  %d  %d  %d\n", netfile, delta_alpha, iprint, print_number, ten_number));
-    console.log(printf("nodefile = %s\n", nodefile));
-    console.log(printf("file of node names = %s\n", nodefilenames));
+    console.log(printf("input-file, 1-alpha, iprint, print_number, ten_number  = %s  %f  %d  %d  %d", path.resolve(netfile), delta_alpha, iprint, print_number, ten_number));
+    console.log(printf("nodefile = %s", path.resolve(nodefile)));
+    console.log(printf("file of node names = %s", path.resolve(nodefilenames)));
 
     let node;
     let node_read_time = getTime();
@@ -334,7 +342,7 @@ async function main(argv) {
             }
             return len;
         });
-    console.log(printf(`reading of nodefile finished in ${getTime()-node_read_time} ms: len = %d\n`, len));
+    console.log(printf(`Read nodefile of %d nodes : ${getTime()-node_read_time} ms`, len));
     const net = new Network(netfile);
     let GR = new Matrix(len, len),
         Grr = new Matrix(len, len),
@@ -348,11 +356,11 @@ async function main(argv) {
     nodefile = path.basename(nodefile, ".nodes");
     let calc_timer = getTime();
     await compute_GR(GR, Grr, Gpr, Gqr, GI, psiL, psiR, pg, net, delta_alpha, node);
-    console.log(`Calculations took ${getTime() - calc_timer} ms`);
+    console.log(`Calculations took : ${getTime() - calc_timer} ms`);
     let write_timer = getTime();
     Matrix.print_mat(Gqr, `Gqr_${net.base_name}_${nodefile}_${len}.dat`, nodefilenames);
     console.log(`Writing matrix took ${getTime() - write_timer} ms`);
-    console.log(`Execution took ${getTime() - start} ms\n`);
+    console.log(`Execution took : ${getTime() - start} ms\n`);
     return 0;
 }
 

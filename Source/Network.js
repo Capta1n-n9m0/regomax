@@ -67,14 +67,14 @@ class Network {
      */
     read_network(filename) {
         let net_read_timer = getTime();
-        console.log("\n****** => Reading of data file ");
+        // console.log("\n****** => Reading of data file ");
         const data = fs.readFileSync(filename);
         let lines = bsplit(data, Buffer.from("\n"));
         this.size = parseInt(lines[0].toString());
         this.link_len = parseInt(lines[1].toString());
         this.init_mem();
         this.base_name = path.basename(filename, ".dat_reduce");
-        console.log("****** => Reading of integer connection matrix");
+        // console.log("****** => Reading of integer connection matrix");
         lines = lines.slice(2);
         let sep = " ";
         for (let i = 0; i < lines.length; i++) {
@@ -91,17 +91,11 @@ class Network {
             this.to.c[i] = n2 - 1;
         }
         this.complete();
-        console.log("size = %d   link_len = %d   dangling_len = %d", this.size, this.link_len, this.dangling.dim);
-        console.log(`****** => Reading of data file finished in ${getTime() - net_read_timer}ms`);
+        console.log(`Read network size = %d, link_len = %d, dangling_len = %d : ${getTime() - net_read_timer} ms`, this.size, this.link_len, this.dangling.dim);
+        // console.log(`****** => Reading of data file finished in ${getTime() - net_read_timer}ms`);
     }
 
     init_mem() {
-        // I don't to want to bother with buffers yet.
-        // so, using js arrays
-        // this.from = Buffer.alloc(8*this.link_len);
-        // this.to = Buffer.alloc(8*this.link_len);
-        // this.link_num = Buffer.alloc(8*this.size);
-        // this.firstpos = Buffer.alloc(8*this.size);
         this.from = new Vector(this.link_len);
         this.to = new Vector(this.link_len);
         this.link_num = new Vector(this.size);

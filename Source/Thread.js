@@ -75,6 +75,7 @@ function pagerank_normalize(a) {
  * @return {number}
  */
 function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, trans_frag) {
+    const func_t = getTime();
     let quality, quality_rel, q1, qfak, pnorm, dlambda, dlambda_old;
     let i, max_iter, l;
 
@@ -82,7 +83,7 @@ function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, trans_f
     max_iter = Math.floor(-Math.log(eps_pagerank) / (delta_alpha + 3E-7));
     max_iter *= 2;
 
-    console.log(printf("max_iter = %d", max_iter));
+    // console.log(printf("max_iter = %d", max_iter));
     qfak = 1.0 + delta_alpha / 2.0;
     pnorm = pagerank_normalize(pagerank);
     let a = new Vector(pagerank);
@@ -95,6 +96,7 @@ function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, trans_f
     dlambda_old = dlambda;
     pnorm = pagerank_normalize(pagerank);
     if (trans_frag) dlambda = 1.0 - pnorm;
+    let iter_t = getTime();
     for (i = 0; i <= max_iter; i++) {
         Vector.swap(a, pagerank);
         if (trans_frag) {
@@ -120,8 +122,10 @@ function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, trans_f
             //      pnorm=sum_vector(pagerank);
 // #pragma omp critical(print)
             // {
-            console.log(printf("%5d  %18.10lg  %18.10lg  %25.16lg  %18.10lg  %25.16lg",
-                i, quality, quality_rel, dlambda, Math.abs(dlambda - dlambda_old), pnorm));
+            // console.log(printf("%5d  %18.10lg  %18.10lg  %25.16lg  %18.10lg  %25.16lg",
+            //     i, quality, quality_rel, dlambda, Math.abs(dlambda - dlambda_old), pnorm));
+            console.log(`${i}\t : ${getTime() - iter_t} ms`);
+            iter_t = getTime();
             //     fflush(stdout);
             // }
             dlambda_old = dlambda;
@@ -133,9 +137,10 @@ function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, trans_f
     }
 // #pragma omp critical(print)
     {
-        console.log(printf("Convergence at i = %d  with lambda = %25.16lg.\n", i, 1.0 - dlambda));
+        // console.log(printf("Convergence at i = %d  with lambda = %25.16lg.\n", i, 1.0 - dlambda));
         //     fflush(stdout);
     }
+    console.log(`calc_pg_proj done in : ${getTime() - func_t} ms`);
     return dlambda;
 }
 
@@ -167,7 +172,7 @@ function compute_GR_heavy(i){
     projectQ(psiR, psiL, s);
     // f = s;
     f.eq(s);
-
+    let inner_t = getTime();
     for (l = 0; l < max_iter; l++) {
         t.eq(s);
         net.GGmult(delta_alpha, f2, f, 0);
@@ -180,7 +185,9 @@ function compute_GR_heavy(i){
 // #pragma omp critical(print)
         {
             if (l % 10 === 0) {
-                console.log(printf("%5d  %5d  %18.10lg  %18.10lg", i, l, quality, Vector.norm1(f)));
+                // console.log(printf("%5d  %5d  %18.10lg  %18.10lg", i, l, quality, Vector.norm1(f)));
+                console.log(`${i}\t${l}\t : ${getTime() - inner_t} ms`);
+                inner_t = getTime();
                 //         fflush(stdout);
             }
         }
@@ -188,8 +195,8 @@ function compute_GR_heavy(i){
     }
 // #pragma omp critical(print)
     {
-        console.log(printf("%5d  Convergence: %5d  %5d  %18.10lg  %18.10lg\n",
-            i, i, l, quality, Vector.norm1(f)));
+        // console.log(printf("%5d  Convergence: %5d  %5d  %18.10lg  %18.10lg\n",
+        //     i, i, l, quality, Vector.norm1(f)));
         //     fflush(stdout);
     }
     net.GGmult(delta_alpha, f, output, 0);
@@ -260,6 +267,7 @@ function processor(msg){
                     compute_GR_heavy(i);
 
                     let delay = getTime() - timer;
+                    console.log(`${i} by ${id} in : ${delay} ms`);
                     parentPort.postMessage({id, delay});
                 }
                 break;
