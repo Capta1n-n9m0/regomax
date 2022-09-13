@@ -118,16 +118,12 @@ function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, trans_f
             quality = Vector.diff_norm1(pagerank, a);
             q1 = quality_rel;
             quality_rel = diff_norm_rel(pagerank, a);
-            //      pnorm=pagerank_normalize(pagerank);
-            //      pnorm=sum_vector(pagerank);
-// #pragma omp critical(print)
-            // {
+            // pnorm=pagerank_normalize(pagerank);
+            // pnorm=sum_vector(pagerank);
             // console.log(printf("%5d  %18.10lg  %18.10lg  %25.16lg  %18.10lg  %25.16lg",
             //     i, quality, quality_rel, dlambda, Math.abs(dlambda - dlambda_old), pnorm));
-            console.log(`${i}\t : ${getTime() - iter_t} ms`);
+            console.log(`#${id} ${i}\t : ${getTime() - iter_t} ms`);
             iter_t = getTime();
-            //     fflush(stdout);
-            // }
             dlambda_old = dlambda;
             if (quality_rel < eps_pagerank) break;
             if (quality_rel < 1e-3) {
@@ -135,12 +131,8 @@ function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, trans_f
             }
         }
     }
-// #pragma omp critical(print)
-    {
-        // console.log(printf("Convergence at i = %d  with lambda = %25.16lg.\n", i, 1.0 - dlambda));
-        //     fflush(stdout);
-    }
-    console.log(`calc_pg_proj done in : ${getTime() - func_t} ms`);
+    // console.log(printf("Convergence at i = %d  with lambda = %25.16lg.\n", i, 1.0 - dlambda));
+    console.log(`#${id} calc_pg_proj : ${getTime() - func_t} ms`);
     return dlambda;
 }
 
@@ -155,6 +147,7 @@ let input, output, s, t, f, f2;
 let G_R, G_rr, G_pr, G_qr, G_I, psiL, psiR, pg, net, delta_alpha, node, max_iter, dlambda;
 let nr, n;
 function compute_GR_heavy(i){
+    let iter_timer = getTime();
     let quality;
     let j, l;
     input.put_value(0.0);
@@ -182,22 +175,12 @@ function compute_GR_heavy(i){
         // s += f;
         s.add_eq(f);
         quality = Vector.diff_norm1(t, s);
-// #pragma omp critical(print)
-        {
-            if (l % 10 === 0) {
-                // console.log(printf("%5d  %5d  %18.10lg  %18.10lg", i, l, quality, Vector.norm1(f)));
-                console.log(`${i}\t${l}\t : ${getTime() - inner_t} ms`);
-                inner_t = getTime();
-                //         fflush(stdout);
-            }
+        if (l % 10 === 0) {
+            // console.log(printf("%5d  %5d  %18.10lg  %18.10lg", i, l, quality, Vector.norm1(f)));
+            console.log(`#${id} compute_GR sub-iter i=${i}\tl=${l}\t : ${getTime() - inner_t} ms`);
+            inner_t = getTime();
         }
         if (quality <= 0) break;
-    }
-// #pragma omp critical(print)
-    {
-        // console.log(printf("%5d  Convergence: %5d  %5d  %18.10lg  %18.10lg\n",
-        //     i, i, l, quality, Vector.norm1(f)));
-        //     fflush(stdout);
     }
     net.GGmult(delta_alpha, f, output, 0);
     for (j = 0; j < nr; j++) {
@@ -213,6 +196,9 @@ function compute_GR_heavy(i){
         G_I.mat[j][i] = f.c[node.c[j]];
         G_R.mat[j][i] += f.c[node.c[j]];
     }
+    // console.log(printf("%5d  Convergence: %5d  %5d  %18.10lg  %18.10lg\n",
+    //     i, i, l, quality, Vector.norm1(f)));
+    console.log(`#${id} compute_GR iter i=${i}\t : ${getTime() - iter_timer} ms`);
 }
 
 let id;
@@ -220,14 +206,13 @@ function processor(msg){
     if(msg.options.work){
         switch (msg.options.task) {
             case 1: {
-                let timer = getTime();
+                id = msg.options.id;
                 let {pagerank, net, delta_alpha, iprint, node, trans_frag} = msg.data;
                 pagerank = Vector.fromObj(pagerank);
                 net = Network.fromObj(net);
                 node = Vector.fromObj(node);
                 let dlambda = calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, trans_frag);
                 parentPort.postMessage({
-                    delay: getTime()-timer,
                     data: dlambda
                 });
                 break;
@@ -261,14 +246,11 @@ function processor(msg){
                     parentPort.postMessage({id, delay});
                 }
                 if(msg.options.stage === 2){
-                    let timer = getTime();
 
                     let {i} = msg.data;
                     compute_GR_heavy(i);
 
-                    let delay = getTime() - timer;
-                    console.log(`${i} by ${id} in : ${delay} ms`);
-                    parentPort.postMessage({id, delay});
+                    parentPort.postMessage({id});
                 }
                 break;
             }

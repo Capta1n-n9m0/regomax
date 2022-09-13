@@ -20,6 +20,7 @@ function getTime() {
     return Number(process.hrtime.bigint() / BigInt(1_000_000));
 }
 
+let calc_pg_proj_th_id = 0;
 /**
  * @param{Vector} pagerank
  * @param{Network} net
@@ -40,9 +41,11 @@ async function calc_pg_proj_th(pagerank, net, delta_alpha, iprint, node, trans_f
                 work: true,
                 task: 1,
                 once: true,
+                id: calc_pg_proj_th_id
             },
             data: {pagerank, net, delta_alpha, iprint, node, trans_frag}
         });
+        calc_pg_proj_th_id++;
     });
 }
 
@@ -65,31 +68,23 @@ async function compute_project(right, left, pg, net, delta_alpha, node) {
     left.put_value(1.0);
     pg.put_value(1.0);
 
-// #pragma omp parallel sections
-    {
-// #pragma omp section
-        let p2 = calc_pg_proj_th(left, net, delta_alpha, iprint, node, 1);
-// #pragma omp section
-        let p1 = calc_pg_proj_th(right, net, delta_alpha, iprint, node);
-// #pragma omp section
-        let p3 = calc_pg_proj_th(pg, net, delta_alpha, iprint, node0);
+    let p2 = calc_pg_proj_th(left, net, delta_alpha, iprint, node, 1);
+    let p1 = calc_pg_proj_th(right, net, delta_alpha, iprint, node);
+    let p3 = calc_pg_proj_th(pg, net, delta_alpha, iprint, node0);
 
-        dlambda1 = await p1;
-        dlambda2 = await p2;
-        dlambda3 = await p3;
-    }
+    dlambda1 = await p1;
+    dlambda2 = await p2;
+    dlambda3 = await p3;
 
     sp = 1.0 / Vector.scalar_product(left, right);
     left.mul_eq(sp);
-    sp = Vector.scalar_product(left, right);
-// #pragma omp critical(print)
-    {
-        // console.log(printf("dlambda = %24.16f   diff = %f\n",
-        //     dlambda1, Math.abs(dlambda1 - dlambda2)));
-        // console.log(printf("TEST: psi_left^T * psi_right = %26.16f\n", sp));
-        //     fflush(stdout);
-    }
-    console.log(`compute_project done in ${getTime() - f_timer} ms`);
+
+    // sp = Vector.scalar_product(left, right);
+    // console.log(printf("dlambda = %24.16f   diff = %f\n",
+    //     dlambda1, Math.abs(dlambda1 - dlambda2)));
+    // console.log(printf("TEST: psi_left^T * psi_right = %26.16f\n", sp));
+
+    console.log(`compute_project : ${getTime() - f_timer} ms`);
     return dlambda1;
 }
 
@@ -124,38 +119,34 @@ async function compute_GR_heavy(data){
         let nr = data.node.dim;
         for (let i = 0; i < nCpu; i++) {
             threads[i] = new Worker(path.join(__dirname, "Thread.js"));
-            // threads[i].postMessage({data, options:{work: true, once: false, stage: 1, id: i}});
-            // threads[i].on("message", setup(i, threads));
         }
-        send_data(data).then(()=>{
-            let c = -1;
-            let done_counter = 0;
-            for(let i = 0; i < threads.length; i++){
-                threads[i].executor = (msg)=>{
-                    c++;
-                    done_counter++;
-                    if(c < nr){
-                        threads[i].postMessage({data:{i: c}, options:{work:true, once: false, stage: 2, task: 2}})
-                    }
-                    if(done_counter === nr){
-                        for(let j = 0; j < threads.length; j++){
-                            threads[j].postMessage({options: {work: false}});
-                            threads[j].off("message", threads[j].executor);
-                        }
-                        resolve();
-                    }
-                }
-                threads[i].on("message", threads[i].executor);
-            }
-            for(let i = 0; i < threads.length; i++){
+        await send_data(data);
+        let c = -1;
+        let done_counter = 0;
+        for(let i = 0; i < threads.length; i++){
+            threads[i].executor = (msg)=>{
                 c++;
+                done_counter++;
                 if(c < nr){
-                    threads[i].postMessage({data:{i: c}, options:{work: true, once: false, stage: 2, task: 2}});
+                    threads[i].postMessage({data:{i: c}, options:{work:true, once: false, stage: 2, task: 2}})
+                }
+                if(done_counter === nr){
+                    for(let j = 0; j < threads.length; j++){
+                        threads[j].postMessage({options: {work: false}});
+                        threads[j].off("message", threads[j].executor);
+                    }
+                    resolve();
                 }
             }
-        });
-
-    })
+            threads[i].on("message", threads[i].executor);
+        }
+        for(let i = 0; i < threads.length; i++){
+            c++;
+            if(c < nr){
+                threads[i].postMessage({data:{i: c}, options:{work: true, once: false, stage: 2, task: 2}});
+            }
+        }
+    });
 }
 
 /**
@@ -191,32 +182,31 @@ async function compute_GR(G_R, G_rr, G_pr,
     console.log("Computation of left and right eigenvectors of G_ss");
     dlambda = await compute_project(psiR, psiL, pg, net, delta_alpha, node);
 
-    // note that the last line also fixes the default size of dvec to n
-    // which is important in the private declaration below which implicitely
-    // calls the default constructor of dvec for each thread
-
-    // #pragma omp parallel for schedule(dynamic) private(in, out, s, t, f, f2, j, l, quality)
     let c_GR_h_timer = getTime();
     await compute_GR_heavy({G_R, G_rr, G_pr, G_qr, G_I, psiL, psiR, pg, net, delta_alpha, node, max_iter, dlambda});
-    console.log(`Heaviest calculations of compute_GR took : ${getTime() - c_GR_h_timer} ms`);
+    console.log(`compute_GR loop : ${getTime() - c_GR_h_timer} ms`);
 }
 
 async function main(argv) {
     const start = getTime();
-    const netfile = argv[2];
+    const net_file = argv[2];
     const delta_alpha = parseFloat(argv[3]);
     const iprint = parseInt(argv[4]);
     const print_number = parseInt(argv[5]);
     const ten_number = parseInt(argv[6]);
-    let nodefile = argv[7];
-    const nodefilenames = argv[8];
-    console.log(printf("input-file, 1-alpha, iprint, print_number, ten_number  = %s  %f  %d  %d  %d", path.resolve(netfile), delta_alpha, iprint, print_number, ten_number));
-    console.log(printf("nodefile = %s", path.resolve(nodefile)));
-    console.log(printf("file of node names = %s", path.resolve(nodefilenames)));
+    let node_file = argv[7];
+    const nodenames_file = argv[8];
+    console.log(`input-file     = ${path.resolve(net_file)}`);
+    console.log(`1-alpha        = ${delta_alpha}`);
+    console.log(`iprint         = ${iprint}`);
+    console.log(`print_number   = ${print_number}`);
+    console.log(`ten_number     = ${ten_number}`);
+    console.log(`node_file      = ${path.resolve(node_file)}`);
+    console.log(`nodenames_file = ${path.resolve(nodenames_file)}`);
 
     let node;
-    let node_read_time = getTime();
-    const len = await fsp.readFile(nodefile)
+    let nodes_read_timer = getTime();
+    const len = await fsp.readFile(node_file)
         .then(data => {
             const lines = bsplit(data, Buffer.from("\n"));
             let len = parseInt(lines[0].toString());
@@ -228,8 +218,9 @@ async function main(argv) {
             }
             return len;
         });
-    console.log(printf(`Read nodefile of %d nodes : ${getTime()-node_read_time} ms`, len));
-    const net = new Network(netfile);
+    console.log(`Read node_file : ${len} nodes`);
+    console.log(`Read node_file : ${getTime() - nodes_read_timer} ms`);
+    const net = new Network(net_file);
     let GR = new Matrix(len, len),
         Grr = new Matrix(len, len),
         Gpr = new Matrix(len, len),
@@ -239,14 +230,14 @@ async function main(argv) {
     let psiL = new Vector(n),
         psiR = new Vector(n),
         pg = new Vector(n);
-    nodefile = path.basename(nodefile, ".nodes");
+    node_file = path.basename(node_file, ".nodes");
     let calc_timer = getTime();
     await compute_GR(GR, Grr, Gpr, Gqr, GI, psiL, psiR, pg, net, delta_alpha, node);
-    console.log(`Calculations took : ${getTime() - calc_timer} ms`);
+    console.log(`Calculations : ${getTime() - calc_timer} ms`);
     let write_timer = getTime();
-    Matrix.print_mat(Gqr, `Gqr_${net.base_name}_${nodefile}_${len}.dat`, nodefilenames);
-    console.log(`Writing matrix took : ${getTime() - write_timer} ms`);
-    console.log(`Execution took : ${getTime() - start} ms\n`);
+    Matrix.print_mat(Gqr, `Gqr_${net.base_name}_${node_file}_${len}.dat`, nodenames_file);
+    console.log(`Writing matrix : ${getTime() - write_timer} ms`);
+    console.log(`Execution : ${getTime() - start} ms\n`);
     return 0;
 }
 
