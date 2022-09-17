@@ -2,10 +2,8 @@ const fs = require("fs");
 const path = require("path");
 const bsplit = require("buffer-split");
 const Vector = require("./Vector");
+const {getTime} = require("./Util");
 
-function getTime() {
-    return Number(process.hrtime.bigint() / BigInt(1_000_000));
-}
 
 class Network {
 

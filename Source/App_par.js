@@ -10,15 +10,10 @@ const Vector = require("./Vector");
 const os = require("os");
 const nCpu = os.cpus().length;
 const { Worker } = require("worker_threads");
+const {getTime} = require("./Util");
 
 const eps_pagerank = 1e-13;
 
-/**
- * @return {number}
- */
-function getTime() {
-    return Number(process.hrtime.bigint() / BigInt(1_000_000));
-}
 
 let calc_pg_proj_th_id = 0;
 /**

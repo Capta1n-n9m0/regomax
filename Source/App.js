@@ -7,15 +7,9 @@ const Network = require("./Network");
 const Matrix = require("./Matrix");
 const printf = require("printf");
 const Vector = require("./Vector");
+const {getTime} = require("./Util");
 
 const eps_pagerank = 1e-13;
-
-/**
- * @return {number}
- */
-function getTime() {
-    return Number(process.hrtime.bigint() / BigInt(1_000_000));
-}
 
 /**
  * @param {Vector} right

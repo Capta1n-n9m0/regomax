@@ -4,6 +4,8 @@ const Network = require("./Network");
 const Matrix = require("./Matrix");
 const printf = require("printf");
 const Vector = require("./Vector");
+const {getTime} = require("./Util");
+
 
 const eps_pagerank = 1e-13;
 
@@ -66,12 +68,12 @@ function pagerank_normalize(a) {
 }
 
 /**
- * @param{Vector} pagerank
- * @param{Network} net
- * @param{number} delta_alpha
- * @param{number} iprint
- * @param{Vector} node
- * @param{number} trans_frag
+ * @param {Vector} pagerank
+ * @param {Network} net
+ * @param {number} delta_alpha
+ * @param {number} iprint
+ * @param {Vector} node
+ * @param {number} trans_frag
  * @return {number}
  */
 function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, trans_frag) {
@@ -138,9 +140,7 @@ function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, trans_f
 
 const { parentPort } = require("worker_threads");
 
-function getTime(){
-    return Number(process.hrtime.bigint() / BigInt(1_000_000));
-}
+
 
 let input, output, s, t, f, f2;
 
