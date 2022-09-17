@@ -9,6 +9,9 @@ function getTime() {
 
 class Network {
 
+    /** @type {?number}
+     */
+    limit;
     /** @type {number}
      */
     size;
@@ -55,8 +58,10 @@ class Network {
 
     /**
      * @param {string} filename
+     * @param {number} limit
      */
-    constructor(filename=undefined) {
+    constructor(filename=undefined, limit=undefined) {
+        if (limit){this.limit = limit}
         if (filename) {
             this.read_network(filename);
         }
@@ -70,13 +75,20 @@ class Network {
         // console.log("\n****** => Reading of data file ");
         const data = fs.readFileSync(filename);
         let lines = bsplit(data, Buffer.from("\n"));
-        this.size = parseInt(lines[0].toString());
-        this.link_len = parseInt(lines[1].toString());
-        this.init_mem();
+        if(this.limit){
+            this.size = this.limit;
+            this.link_num = new Vector(this.size);
+            this.firstpos = new Vector(this.size + 1);
+        }else {
+            this.size = parseInt(lines[0].toString());
+            this.link_len = parseInt(lines[1].toString());
+            this.init_mem();
+        }
         this.base_name = path.basename(filename, ".dat_reduce");
         // console.log("****** => Reading of integer connection matrix");
         lines = lines.slice(2);
         let sep = " ";
+        let from_t = [], to_t = [];
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             if (line.length === 0) continue;
@@ -87,8 +99,25 @@ class Network {
             }
             const n1 = parseInt(numbers[0].toString());
             const n2 = parseInt(numbers[1].toString());
-            this.from.c[i] = n1 - 1;
-            this.to.c[i] = n2 - 1;
+            if(this.limit){
+                if(n1 <= this.limit && n2 <= this.limit){
+                    from_t.push(n1-1);
+                    to_t.push(n2-1);
+                }
+            }else {
+                this.from.c[i] = n1 - 1;
+                this.to.c[i] = n2 - 1;
+            }
+        }
+        if (this.limit){
+            if(from_t.length !== to_t.length) throw "Unequal link arrays!";
+            this.link_len = from_t.length;
+            this.from = new Vector(this.link_len);
+            this.to = new Vector(this.link_len);
+            for(let i = 0; i < this.link_len; i++){
+                this.from.c[i] = from_t[i];
+                this.to.c[i] = to_t[i];
+            }
         }
         this.complete();
         console.log(`Read network size = %d, link_len = %d, dangling_len = %d : ${getTime() - net_read_timer} ms`, this.size, this.link_len, this.dangling.dim);

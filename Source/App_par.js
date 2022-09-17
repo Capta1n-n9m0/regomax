@@ -210,26 +210,32 @@ async function main(argv) {
     const ten_number = parseInt(argv[6]);
     let nodefile = argv[7];
     const nodefilenames = argv[8];
+    const limit = parseInt(argv[9]);
     console.log(printf("input-file, 1-alpha, iprint, print_number, ten_number  = %s  %f  %d  %d  %d", path.resolve(netfile), delta_alpha, iprint, print_number, ten_number));
     console.log(printf("nodefile = %s", path.resolve(nodefile)));
     console.log(printf("file of node names = %s", path.resolve(nodefilenames)));
 
-    let node;
     let node_read_time = getTime();
+    let tmp = [];
     const len = await fsp.readFile(nodefile)
         .then(data => {
             const lines = bsplit(data, Buffer.from("\n"));
-            let len = parseInt(lines[0].toString());
-            node = new Vector(len);
-            let i = 0;
             for (const line of lines.slice(1)) {
                 if (line.length === 0) continue;
-                node.c[i++] = parseInt(line.toString());
+                const n = parseInt(line.toString());
+                if(limit) {
+                    if (n <= limit) tmp.push(n);
+                }
+                else tmp.push(n);
             }
-            return len;
+            return tmp.length;
         });
+    let node = new Vector(len);
+    for(let i = 0; i < tmp.length; i++){
+        node.c[i] = tmp[i];
+    }
     console.log(printf(`Read nodefile of %d nodes : ${getTime()-node_read_time} ms`, len));
-    const net = new Network(netfile);
+    const net = new Network(netfile, limit);
     let GR = new Matrix(len, len),
         Grr = new Matrix(len, len),
         Gpr = new Matrix(len, len),
