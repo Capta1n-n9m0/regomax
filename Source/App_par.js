@@ -29,7 +29,10 @@ async function calc_pg_proj_th(pagerank, net, delta_alpha, iprint, node, trans_f
     return new Promise((resolve)=>{
         let w = new Worker(path.join(__dirname, "Thread.js"));
         w.on("message", (msg)=>{
-            resolve(msg.data);
+            if(msg.done === true) resolve(msg.data);
+            else {
+                console.log(msg.data);
+            }
         });
         w.postMessage({
             options:{
@@ -120,17 +123,22 @@ async function compute_GR_heavy(data){
         let done_counter = 0;
         for(let i = 0; i < threads.length; i++){
             threads[i].executor = (msg)=>{
-                c++;
-                done_counter++;
-                if(c < nr){
-                    threads[i].postMessage({data:{i: c}, options:{work:true, once: false, stage: 2, task: 2}})
-                }
-                if(done_counter === nr){
-                    for(let j = 0; j < threads.length; j++){
-                        threads[j].postMessage({options: {work: false}});
-                        threads[j].off("message", threads[j].executor);
+                if(msg.done === true){
+                    c++;
+                    done_counter++;
+                    if(c < nr){
+                        threads[i].postMessage({data:{i: c}, options:{work:true, once: false, stage: 2, task: 2}})
                     }
-                    resolve();
+                    if(done_counter === nr){
+                        for(let j = 0; j < threads.length; j++){
+                            threads[j].postMessage({options: {work: false}});
+                            threads[j].off("message", threads[j].executor);
+                        }
+                        resolve();
+                    }
+                }
+                else {
+                    console.log(msg.data);
                 }
             }
             threads[i].on("message", threads[i].executor);
@@ -198,7 +206,8 @@ async function main(argv) {
     console.log(`print_number   = ${print_number}`);
     console.log(`ten_number     = ${ten_number}`);
     console.log(`node_file      = ${path.resolve(node_file)}`);
-    console.log(`nodenames_file = ${path.resolve(nodenames_file)}`);
+    if(nodenames_file)
+        console.log(`nodenames_file = ${path.resolve(nodenames_file)}`);
 
 
     let nodes_read_timer = getTime();

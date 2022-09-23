@@ -4,68 +4,11 @@ const Network = require("./Network");
 const Matrix = require("./Matrix");
 const printf = require("printf");
 const Vector = require("./Vector");
-const {getTime} = require("./Util");
-
+const { parentPort } = require("worker_threads");
 
 const eps_pagerank = 1e-13;
 
-/**
- * @param {Vector} right
- * @param {Vector} left
- * @param {Vector} v
- */
-function projectQ(right, left, v) {
-    let sp;
-
-    sp = Vector.scalar_product(left, v);
-    v.lam_diff(sp, right);
-}
-
-/**
- * @param {Vector} right
- * @param {Vector} left
- * @param {Vector} v
- * @param {number} f
- */
-function projectP(right, left, v, f = 1) {
-    let i, n = v.size();
-    let sp;
-
-    sp = Vector.scalar_product(left, v) / f;
-    v.test(right);
-    for (i = 0; i < n; i++) v.c[i] = sp * right.c[i];
-}
-
-/**
- * @param {Vector} a
- * @param {Vector} b
- * @return number
- */
-function diff_norm_rel(a, b) {
-    let sum, ss;
-    let i, n;
-    n = a.size();
-    sum = 0.0;
-    //#pragma omp parallel for reduction(+:sum)
-    for (i = 0; i < n; i++) {
-        ss = Vector.abs(a.c[i]) + Vector.abs(b.c[i]);
-        if (ss === 0) continue;
-        sum += Vector.abs(a.c[i] - b.c[i]) / ss;
-    }
-    return sum;
-}
-
-/**
- * @param {Vector} a
- * @return number
- */
-function pagerank_normalize(a) {
-    let sum;
-
-    sum = Vector.sum_vector(a);
-    a.div_eq(sum);
-    return sum;
-}
+const {getTime, projectQ, projectP, diff_norm_rel, pagerank_normalize} = require("./Util");
 
 /**
  * @param {Vector} pagerank
@@ -125,6 +68,10 @@ function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, trans_f
             // console.log(printf("%5d  %18.10lg  %18.10lg  %25.16lg  %18.10lg  %25.16lg",
             //     i, quality, quality_rel, dlambda, Math.abs(dlambda - dlambda_old), pnorm));
             console.log(`#${id} ${i}\t : ${getTime() - iter_t} ms`);
+            parentPort.postMessage({
+                done: false,
+                data: `#${id} ${i}\t : ${getTime() - iter_t} ms`
+            })
             iter_t = getTime();
             dlambda_old = dlambda;
             if (quality_rel < eps_pagerank) break;
@@ -135,12 +82,12 @@ function calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, trans_f
     }
     // console.log(printf("Convergence at i = %d  with lambda = %25.16lg.\n", i, 1.0 - dlambda));
     console.log(`#${id} calc_pg_proj : ${getTime() - func_t} ms`);
+    parentPort.postMessage({
+        done: false,
+        data: `#${id} calc_pg_proj : ${getTime() - func_t} ms`
+    })
     return dlambda;
 }
-
-const { parentPort } = require("worker_threads");
-
-
 
 let input, output, s, t, f, f2;
 
@@ -177,7 +124,11 @@ function compute_GR_heavy(i){
         quality = Vector.diff_norm1(t, s);
         if (l % 10 === 0) {
             // console.log(printf("%5d  %5d  %18.10lg  %18.10lg", i, l, quality, Vector.norm1(f)));
-            console.log(`#${id} compute_GR sub-iter i=${i}\tl=${l}\t : ${getTime() - inner_t} ms`);
+            // console.log(`#${id} compute_GR sub-iter i=${i}\tl=${l}\t : ${getTime() - inner_t} ms`);
+            parentPort.postMessage({
+                done: false,
+                data: `#${id} compute_GR sub-iter i=${i}\tl=${l}\t : ${getTime() - inner_t} ms`
+            });
             inner_t = getTime();
         }
         if (quality <= 0) break;
@@ -198,7 +149,11 @@ function compute_GR_heavy(i){
     }
     // console.log(printf("%5d  Convergence: %5d  %5d  %18.10lg  %18.10lg\n",
     //     i, i, l, quality, Vector.norm1(f)));
-    console.log(`#${id} compute_GR iter i=${i}\t : ${getTime() - iter_timer} ms`);
+    // console.log(`#${id} compute_GR iter i=${i}\t : ${getTime() - iter_timer} ms`);
+    parentPort.postMessage({
+        done: false,
+        data: `#${id} compute_GR iter i=${i}\t : ${getTime() - iter_timer} ms`
+    });
 }
 
 let id;
@@ -213,6 +168,7 @@ function processor(msg){
                 node = Vector.fromObj(node);
                 let dlambda = calc_pagerank_project(pagerank, net, delta_alpha, iprint, node, trans_frag);
                 parentPort.postMessage({
+                    done: true,
                     data: dlambda
                 });
                 break;
@@ -250,7 +206,7 @@ function processor(msg){
                     let {i} = msg.data;
                     compute_GR_heavy(i);
 
-                    parentPort.postMessage({id});
+                    parentPort.postMessage({done: true, id});
                 }
                 break;
             }

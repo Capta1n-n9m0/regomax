@@ -4,8 +4,13 @@
   "description": "Reduced Google matrix calculation using Node.js",
   "main": "index.js",
   "scripts": {
+    "10_000_par": "node --max-old-space-size=245760 index.js par Data/10_000/wikigroup_10000.dat_reduce 0.15 10 10000 100 Data/10_000/wikigroup_10000.nodes Data/10_000/wikigroup_10000.names",
+    "10_000_lin": "node --max-old-space-size=245760 index.js lin Data/10_000/wikigroup_10000.dat_reduce 0.15 10 10000 100 Data/10_000/wikigroup_10000.nodes Data/10_000/wikigroup_10000.names",
+    "20_000_par": "node --max-old-space-size=245760 index.js par Data/20_000/wikigroup_20000.dat_reduce 0.15 10 10000 100 Data/20_000/wikigroup_20000.nodes Data/20_000/wikigroup_20000.names",
+    "20_000_lin": "node --max-old-space-size=245760 index.js lin Data/20_000/wikigroup_20000.dat_reduce 0.15 10 10000 100 Data/20_000/wikigroup_20000.nodes Data/20_000/wikigroup_20000.names",
+    "200_000_par": "node --max-old-space-size=245760 index.js par Data/200_000/wikigroup_200000.dat_reduce 0.15 10 10000 100 Data/200_000/wikigroup_200000.nodes Data/200_000/wikigroup_200000.names",
     "start": "nodemon index.js wikigroup.dat_reduce 0.15 10 10000 100 wikigroup.nodes wikigroup.names",
-    "run": "node --max-old-space-size=24576 index.js par Data/bac_lil/wikigroup.dat_reduce 0.15 10 10000 100 Data/bac_lil/wikigroup.nodes Data/bac_lil/wikigroup.names",
+    "run": "node --max-old-space-size=24576 index.js par Data/wikigroup.dat_reduce 0.15 10 10000 100 Data/wikigroup.nodes Data/wikigroup.names",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Javid Khalidov, Abbas Aliyev",
